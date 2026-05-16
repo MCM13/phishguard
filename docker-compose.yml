@@ -1,0 +1,43 @@
+# Docker Compose para PhishGuard
+# Levanta el backend FastAPI en el puerto 8000 y el frontend React en el 3000.
+# El frontend conecta al backend a través de la variable VITE_API_URL.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: phishguard-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=sqlite:////data/phishguard.db
+      - LOG_LEVEL=INFO
+      - ALLOWED_ORIGINS=*
+    volumes:
+      # Persistimos la base de datos SQLite fuera del contenedor
+      - phishguard-data:/data
+    ports:
+      - "8000:8000"
+    working_dir: /app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # La URL del backend visible desde el navegador del usuario.
+        # En despliegue en VPS, sustituir por https://tu-dominio o IP pública.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    container_name: phishguard-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  phishguard-data:

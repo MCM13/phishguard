@@ -1,0 +1,90 @@
+import React from 'react';
+import ScoreGauge from './ScoreGauge.jsx';
+import IndicatorList from './IndicatorList.jsx';
+
+// Mapa de estilos según el veredicto devuelto por la IA
+const VERDICT_STYLES = {
+  PHISHING: {
+    label: 'PHISHING',
+    pill: 'bg-red-500/15 text-red-300 border-red-500/40',
+    border: 'border-red-500/30',
+  },
+  SOSPECHOSO: {
+    label: 'SOSPECHOSO',
+    pill: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
+    border: 'border-amber-500/30',
+  },
+  'LEGÍTIMO': {
+    label: 'LEGÍTIMO',
+    pill: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+    border: 'border-emerald-500/30',
+  },
+};
+
+export default function ResultCard({ result }) {
+  if (!result) return null;
+
+  const verdictStyle = VERDICT_STYLES[result.verdict] || VERDICT_STYLES.SOSPECHOSO;
+  const formattedDate = result.timestamp
+    ? new Date(result.timestamp).toLocaleString('es-ES')
+    : null;
+
+  return (
+    <div
+      className={`animate-fade-up rounded-2xl border ${verdictStyle.border} bg-slate-900/70 p-6 shadow-xl shadow-black/30 backdrop-blur`}
+    >
+      <div className="flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="w-full md:w-1/3">
+          <ScoreGauge score={result.score} />
+        </div>
+
+        <div className="flex-1 space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-wider ${verdictStyle.pill}`}
+            >
+              {verdictStyle.label}
+            </span>
+            {result.url && (
+              <a
+                href={result.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="break-all text-sm text-sky-400 hover:underline"
+                onClick={(e) => {
+                  // Evitamos visitar URLs marcadas como phishing por accidente
+                  if (result.verdict === 'PHISHING') {
+                    e.preventDefault();
+                    alert('Por seguridad, esta URL marcada como PHISHING no se abre desde la app.');
+                  }
+                }}
+              >
+                {result.url}
+              </a>
+            )}
+          </div>
+
+          <p className="text-slate-200">{result.ai_explanation}</p>
+
+          {typeof result.virustotal_detections === 'number' && (
+            <div className="text-xs text-slate-400">
+              <span className="font-semibold text-slate-300">VirusTotal:</span>{' '}
+              {result.virustotal_detections} motores marcaron esta URL.
+            </div>
+          )}
+
+          {formattedDate && (
+            <div className="text-xs text-slate-500">Analizado el {formattedDate}</div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-300">
+          Indicadores detectados
+        </h3>
+        <IndicatorList indicators={result.indicators} />
+      </div>
+    </div>
+  );
+}
