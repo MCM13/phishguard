@@ -15,7 +15,9 @@ services:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=sqlite:////data/phishguard.db
       - LOG_LEVEL=INFO
-      - ALLOWED_ORIGINS=*
+      # ALLOWED_ORIGINS se toma de .env. Por seguridad NO se hardcodea a "*";
+      # si la variable no está definida, se usa el origen del frontend local.
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
     volumes:
       # Persistimos la base de datos SQLite fuera del contenedor
       - phishguard-data:/data
