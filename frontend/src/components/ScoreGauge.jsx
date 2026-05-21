@@ -27,8 +27,13 @@ export default function ScoreGauge({ score = 0, size = 220 }) {
   const circumference = Math.PI * radius;
   const offset = circumference - (safeScore / 100) * circumference;
 
+  const isHighRisk = safeScore > 60;
+
   return (
-    <div className="flex flex-col items-center" aria-label={`Score ${safeScore} de 100`}>
+    <div
+      className={`flex flex-col items-center ${isHighRisk ? 'animate-pulse-slow' : ''}`}
+      aria-label={`Score ${safeScore} de 100`}
+    >
       <svg width={size} height={size / 2 + 12} viewBox={`0 0 ${size} ${size / 2 + 12}`}>
         {/* Pista de fondo */}
         <path

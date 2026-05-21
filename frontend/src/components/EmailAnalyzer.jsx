@@ -42,18 +42,14 @@ export default function EmailAnalyzer({ onAnalyzed }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Pega aquí el email completo o sólo el cuerpo del mensaje…"
-          className="w-full resize-y rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 font-mono text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+          className="input-glow w-full resize-y font-mono text-sm"
           disabled={loading}
         />
         <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between">
           <p className="text-xs text-slate-500">
             La IA analiza remitente, urgencia, palabras clave y enlaces incrustados.
           </p>
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center justify-center rounded-lg bg-sky-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          <button type="submit" disabled={loading} className="btn-primary shrink-0">
             {loading ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />

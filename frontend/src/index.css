@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Estilos globales muy ligeros: scroll suave y mejor renderizado */
 html {
   scroll-behavior: smooth;
 }
@@ -13,11 +12,51 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Animación reutilizable para tarjetas que aparecen */
+/* Rejilla tipo panel de seguridad */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 20%, transparent 75%);
+}
+
+/* Orbes de fondo con movimiento lento */
+.orb {
+  filter: blur(80px);
+  opacity: 0.45;
+  animation: float 18s ease-in-out infinite;
+}
+.orb-cyan {
+  background: radial-gradient(circle, #0ea5e9 0%, transparent 70%);
+}
+.orb-violet {
+  background: radial-gradient(circle, #6366f1 0%, transparent 70%);
+  animation-delay: -6s;
+}
+.orb-red {
+  background: radial-gradient(circle, #ef4444 0%, transparent 70%);
+  animation-delay: -12s;
+  opacity: 0.25;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(24px, -18px) scale(1.05);
+  }
+  66% {
+    transform: translate(-16px, 12px) scale(0.95);
+  }
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -26,5 +65,103 @@ body {
 }
 
 .animate-fade-up {
-  animation: fadeUp 0.4s ease-out both;
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0.8) 0%,
+    rgba(51, 65, 85, 0.9) 50%,
+    rgba(30, 41, 59, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Título con gradiente animado */
+.text-gradient-hero {
+  background: linear-gradient(
+    120deg,
+    #f8fafc 0%,
+    #7dd3fc 35%,
+    #38bdf8 55%,
+    #a5b4fc 80%,
+    #f8fafc 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
+}
+
+/* Tarjeta glass reutilizable */
+@layer components {
+  .glass-card {
+    @apply rounded-2xl border border-white/[0.08] bg-slate-900/50 shadow-xl shadow-black/20 backdrop-blur-md;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition duration-300 hover:border-sky-500/25 hover:shadow-sky-500/10 hover:shadow-lg;
+  }
+
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-6 py-3 font-semibold text-slate-950 shadow-lg shadow-sky-500/25 transition hover:from-sky-400 hover:to-cyan-300 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .input-glow {
+    @apply rounded-xl border border-slate-700/80 bg-slate-950/60 px-4 py-3 text-slate-100 placeholder:text-slate-500 transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/30;
+  }
+}
+
+/* Brillo en botón al hover */
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.5s ease;
+}
+.btn-primary:hover:not(:disabled)::after {
+  transform: translateX(120%);
+}
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.92;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2.5s ease-in-out infinite;
 }

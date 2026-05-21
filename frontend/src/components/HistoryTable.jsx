@@ -10,22 +10,23 @@ const VERDICT_PILL = {
 export default function HistoryTable({ items = [], loading = false }) {
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-slate-400">
-        Cargando historial…
+      <div className="glass-card p-8 text-center text-slate-400">
+        <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
+        <span className="ml-2">Cargando historial…</span>
       </div>
     );
   }
 
   if (!items.length) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-center text-slate-400">
+      <div className="glass-card p-8 text-center text-slate-400">
         Aún no hay análisis registrados.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
+    <div className="glass-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-800 text-sm">
           <thead className="bg-slate-900/80 text-left text-xs uppercase tracking-wider text-slate-400">
@@ -37,13 +38,16 @@ export default function HistoryTable({ items = [], loading = false }) {
               <th className="px-4 py-3">Veredicto</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-white/[0.06]">
             {items.map((item) => {
               const pill = VERDICT_PILL[item.verdict] || VERDICT_PILL.SOSPECHOSO;
               const date = item.timestamp ? new Date(item.timestamp).toLocaleString('es-ES') : '';
               const inputText = (item.url || item.input || '').slice(0, 80);
               return (
-                <tr key={item.id} className="hover:bg-slate-900/60">
+                <tr
+                  key={item.id}
+                  className="transition hover:bg-sky-500/[0.04]"
+                >
                   <td className="whitespace-nowrap px-4 py-3 text-slate-300">{date}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-400">
                     {item.type === 'url' ? 'URL' : 'Email'}

@@ -45,14 +45,10 @@ export default function URLAnalyzer({ onAnalyzed }) {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://ejemplo-sospechoso.com/login"
-            className="flex-1 rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+            className="input-glow flex-1 font-mono text-sm"
             disabled={loading}
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center justify-center rounded-lg bg-sky-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          <button type="submit" disabled={loading} className="btn-primary shrink-0">
             {loading ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
@@ -82,18 +78,18 @@ export default function URLAnalyzer({ onAnalyzed }) {
 // Esqueleto que se muestra mientras esperamos la respuesta del backend
 function SkeletonResult() {
   return (
-    <div className="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+    <div className="glass-card overflow-hidden p-6">
       <div className="flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="h-32 w-32 rounded-full bg-slate-800" />
+        <div className="h-32 w-32 animate-shimmer rounded-full" />
         <div className="flex-1 space-y-3">
-          <div className="h-6 w-32 rounded bg-slate-800" />
-          <div className="h-4 w-full rounded bg-slate-800" />
-          <div className="h-4 w-3/4 rounded bg-slate-800" />
+          <div className="h-6 w-32 animate-shimmer rounded-lg" />
+          <div className="h-4 w-full animate-shimmer rounded-lg" />
+          <div className="h-4 w-3/4 animate-shimmer rounded-lg" />
         </div>
       </div>
       <div className="mt-6 space-y-2">
-        <div className="h-12 w-full rounded bg-slate-800" />
-        <div className="h-12 w-full rounded bg-slate-800" />
+        <div className="h-12 w-full animate-shimmer rounded-xl" />
+        <div className="h-12 w-full animate-shimmer rounded-xl" />
       </div>
     </div>
   );

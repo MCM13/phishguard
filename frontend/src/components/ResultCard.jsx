@@ -7,17 +7,20 @@ const VERDICT_STYLES = {
   PHISHING: {
     label: 'PHISHING',
     pill: 'bg-red-500/15 text-red-300 border-red-500/40',
-    border: 'border-red-500/30',
+    border: 'border-red-500/40',
+    glow: 'shadow-red-500/20',
   },
   SOSPECHOSO: {
     label: 'SOSPECHOSO',
     pill: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
-    border: 'border-amber-500/30',
+    border: 'border-amber-500/35',
+    glow: 'shadow-amber-500/15',
   },
   'LEGÍTIMO': {
     label: 'LEGÍTIMO',
     pill: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
-    border: 'border-emerald-500/30',
+    border: 'border-emerald-500/35',
+    glow: 'shadow-emerald-500/15',
   },
 };
 
@@ -31,7 +34,7 @@ export default function ResultCard({ result }) {
 
   return (
     <div
-      className={`animate-fade-up rounded-2xl border ${verdictStyle.border} bg-slate-900/70 p-6 shadow-xl shadow-black/30 backdrop-blur`}
+      className={`animate-fade-up glass-card border-2 p-6 md:p-8 ${verdictStyle.border} shadow-2xl ${verdictStyle.glow}`}
     >
       <div className="flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-between">
         <div className="w-full md:w-1/3">

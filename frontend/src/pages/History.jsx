@@ -35,12 +35,14 @@ export default function History() {
   }, [page, verdict]);
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="animate-fade-up space-y-8">
+      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Historial</h1>
-          <p className="text-sm text-slate-400">
-            Listado de todos los análisis realizados, ordenados del más reciente.
+          <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
+            Historial de análisis
+          </h1>
+          <p className="mt-2 text-slate-400">
+            Registro completo ordenado del más reciente al más antiguo.
           </p>
         </div>
         <div className="flex items-center gap-2">
