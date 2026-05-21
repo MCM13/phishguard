@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { analyzeUrl } from '../api.js';
+import { analyzeUrl, friendlyError } from '../api.js';
 import ResultCard from './ResultCard.jsx';
 
 // Formulario para analizar una URL sospechosa.
@@ -24,11 +24,10 @@ export default function URLAnalyzer({ onAnalyzed }) {
       setResult(data);
       onAnalyzed && onAnalyzed(data);
     } catch (err) {
-      console.error(err);
-      const message =
-        err.response?.data?.detail ||
-        'No se pudo completar el análisis. Inténtalo de nuevo.';
-      setError(message);
+      // Sólo guardamos el error en consola en desarrollo; al usuario sólo le
+      // mostramos un mensaje genérico/amigable sin trazas técnicas.
+      if (import.meta.env.DEV) console.error(err);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }

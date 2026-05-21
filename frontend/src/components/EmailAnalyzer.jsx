@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { analyzeEmail } from '../api.js';
+import { analyzeEmail, friendlyError } from '../api.js';
 import ResultCard from './ResultCard.jsx';
 
 // Formulario para analizar el texto de un email sospechoso.
@@ -24,11 +24,8 @@ export default function EmailAnalyzer({ onAnalyzed }) {
       setResult(data);
       onAnalyzed && onAnalyzed(data);
     } catch (err) {
-      console.error(err);
-      const message =
-        err.response?.data?.detail ||
-        'No se pudo completar el análisis. Inténtalo de nuevo.';
-      setError(message);
+      if (import.meta.env.DEV) console.error(err);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }

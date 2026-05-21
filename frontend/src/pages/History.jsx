@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import HistoryTable from '../components/HistoryTable.jsx';
-import { getHistory } from '../api.js';
+import { getHistory, friendlyError } from '../api.js';
 
 // Página con el historial de análisis. Permite filtrar por veredicto.
 export default function History() {
@@ -23,8 +23,8 @@ export default function History() {
       setItems(data.items || []);
       setTotalPages(data.total_pages || 1);
     } catch (err) {
-      console.error(err);
-      setError('No se pudo cargar el historial.');
+      if (import.meta.env.DEV) console.error(err);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }

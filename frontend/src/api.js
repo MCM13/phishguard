@@ -33,4 +33,50 @@ export const getStats = async () => {
   return data;
 };
 
+/**
+ * Convierte cualquier error de axios en un mensaje amigable en español.
+ *
+ * No expone trazas, clases de excepción ni detalles internos al usuario.
+ * Sólo en errores 400 reutiliza el `detail` que envía el backend, ya que
+ * esos mensajes son validaciones del propio input del usuario.
+ */
+export const friendlyError = (err) => {
+  if (!err) return 'Ha ocurrido un error inesperado. Inténtalo de nuevo.';
+
+  if (err.response) {
+    const { status, data } = err.response;
+    const detail = data?.detail;
+
+    switch (status) {
+      case 400:
+        return typeof detail === 'string'
+          ? detail
+          : 'La información enviada no es válida.';
+      case 413:
+        return 'El contenido enviado es demasiado grande.';
+      case 415:
+        return 'Formato de petición no admitido.';
+      case 429:
+        return (
+          typeof detail === 'string'
+            ? detail
+            : 'Has hecho demasiadas peticiones. Espera un momento antes de volver a intentarlo.'
+        );
+      case 504:
+        return 'El servidor tardó demasiado en responder. Inténtalo de nuevo.';
+      default:
+        if (status >= 500) {
+          return 'Se ha producido un error en el servidor. Inténtalo de nuevo más tarde.';
+        }
+        return 'No se pudo completar la operación.';
+    }
+  }
+
+  if (err.request) {
+    return 'No se puede contactar con el servidor. Comprueba tu conexión.';
+  }
+
+  return 'Ha ocurrido un error inesperado.';
+};
+
 export default api;

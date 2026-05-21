@@ -46,21 +46,27 @@ export default function ResultCard({ result }) {
               {verdictStyle.label}
             </span>
             {result.url && (
-              <a
-                href={result.url}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="break-all text-sm text-sky-400 hover:underline"
-                onClick={(e) => {
-                  // Evitamos visitar URLs marcadas como phishing por accidente
-                  if (result.verdict === 'PHISHING') {
-                    e.preventDefault();
-                    alert('Por seguridad, esta URL marcada como PHISHING no se abre desde la app.');
-                  }
-                }}
-              >
-                {result.url}
-              </a>
+              result.verdict === 'PHISHING' ? (
+                // Para URLs marcadas como PHISHING NUNCA renderizamos un enlace
+                // clicable. Se muestra como texto plano con etiqueta de aviso.
+                <span
+                  className="break-all rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-sm text-red-300 select-all"
+                  title="Enlace deshabilitado por motivos de seguridad"
+                  aria-label={`URL maliciosa (deshabilitada): ${result.url}`}
+                >
+                  <span className="mr-1 text-xs uppercase tracking-wider">[bloqueado]</span>
+                  {result.url}
+                </span>
+              ) : (
+                <a
+                  href={result.url}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="break-all text-sm text-sky-400 hover:underline"
+                >
+                  {result.url}
+                </a>
+              )
             )}
           </div>
 

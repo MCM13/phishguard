@@ -15,7 +15,7 @@ export default function Dashboard() {
       setStats(data);
       setStatsError(false);
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
       setStatsError(true);
     }
   };
@@ -103,21 +103,52 @@ function StatsPanel({ stats, hasError }) {
     },
   ];
 
+  const quota = stats?.anthropic_quota;
+  const daily = quota?.daily;
+  const quotaLabel =
+    daily && !daily.unlimited && daily.limit != null
+      ? `${daily.remaining ?? 0}/${daily.limit}`
+      : null;
+
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      {items.map((item) => (
-        <div
-          key={item.label}
-          className="rounded-xl border border-slate-800 bg-slate-900/40 p-4"
-        >
-          <div className="text-xs uppercase tracking-wider text-slate-400">
-            {item.label}
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className="rounded-xl border border-slate-800 bg-slate-900/40 p-4"
+          >
+            <div className="text-xs uppercase tracking-wider text-slate-400">
+              {item.label}
+            </div>
+            <div className="mt-2 text-2xl font-bold tabular-nums text-white">
+              {item.value}
+            </div>
           </div>
-          <div className="mt-2 text-2xl font-bold tabular-nums text-white">
-            {item.value}
+        ))}
+        {quotaLabel && (
+          <div
+            className={`rounded-xl border p-4 ${
+              quota?.can_call_claude
+                ? 'border-sky-500/30 bg-sky-500/10'
+                : 'border-amber-500/40 bg-amber-500/10'
+            }`}
+          >
+            <div className="text-xs uppercase tracking-wider text-slate-400">
+              Cuota IA (hoy)
+            </div>
+            <div className="mt-2 text-2xl font-bold tabular-nums text-white">
+              {quotaLabel}
+            </div>
+            <div className="mt-1 text-xs text-slate-400">llamadas restantes</div>
           </div>
-        </div>
-      ))}
+        )}
+      </div>
+      {quota && !quota.can_call_claude && (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
+          {quota.block_reason} Los análisis seguirán con reglas heurísticas locales.
+        </p>
+      )}
     </div>
   );
 }
