@@ -26,11 +26,11 @@ services:
       # Persistent Disk en /var/data y usa: sqlite:////var/data/phishguard.db
       - key: DATABASE_URL
         value: sqlite:////tmp/phishguard.db
-      # Frontend en dominio propio (https://phishguard.cmmario.com)
+      # Sustituye por tu dominio real en el panel de Render (no uses URLs de ejemplo en producción)
       - key: FRONTEND_URL
-        value: https://phishguard.cmmario.com
+        value: https://app.tu-dominio.com
       - key: ALLOWED_ORIGINS
-        value: https://phishguard.cmmario.com
+        value: https://app.tu-dominio.com
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: LOG_LEVEL
@@ -45,7 +45,7 @@ services:
     dockerCommand: ""
     envVars:
       - key: VITE_API_URL
-        value: https://phishguard-backend-qszu.onrender.com
+        value: https://tu-servicio-backend.onrender.com
     buildCommand: ""
     # El build arg VITE_API_URL se pasa en el Dockerfile; en Render configura
     # también en Environment → Docker Build Args si usas el panel web.

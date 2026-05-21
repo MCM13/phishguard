@@ -1,280 +1,180 @@
 # PhishGuard
 
-**Herramienta web de análisis de phishing con IA.**
-Analiza URLs y emails sospechosos combinando extracción de features locales, VirusTotal, URLScan.io y Anthropic Claude para devolver:
+[![Backend — Render](https://img.shields.io/badge/Backend-Render-46E3B7?style=flat&logo=render&logoColor=white)](https://render.com)
+[![Frontend — Cloudflare Pages](https://img.shields.io/badge/Frontend-Cloudflare%20Pages-F38020?style=flat&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-- Un **score** de 0 a 100
-- Un **veredicto**: `PHISHING` / `SOSPECHOSO` / `LEGÍTIMO`
-- Una **explicación detallada** en español
-- Una **lista de indicadores** con severidad
+**Análisis de phishing con IA para URLs y correos sospechosos — score, veredicto e indicadores en español.**
 
 ---
 
-## Stack
+## Descripción general
 
-| Capa     | Tecnología                                |
-| -------- | ------------------------------------------ |
-| Backend  | Python 3.11 · FastAPI · SQLAlchemy · SQLite |
-| Frontend | React 18 · Vite · Tailwind CSS             |
-| IA       | Anthropic Claude (`claude-sonnet-4-6` por defecto, configurable) |
-| Externos | VirusTotal API v3 · URLScan.io API         |
-| Deploy   | Docker · Docker Compose                    |
+**PhishGuard** es una aplicación web orientada a la detección de intentos de *phishing*. Permite analizar enlaces y mensajes de correo sospechosos y obtener una valoración clara del riesgo, pensada para formación, laboratorios de ciberseguridad y uso profesional con criterio humano.
 
-## Estructura del proyecto
+### Problema que aborda
 
-> **Despliegue:** las carpetas deben llamarse exactamente `frontend/` y `scripts/` (no `Interfaz` ni `guiones`) para que Render, Docker y Cloudflare Pages resuelvan las rutas correctamente.
+El *phishing* sigue siendo una de las vías de ataque más habituales: enlaces fraudulentos, suplantación de marcas y correos de urgencia que empujan a la víctima a actuar sin pensar. PhishGuard centraliza varias fuentes de inteligencia y un motor de IA para **priorizar la revisión** y documentar el porqué de cada alerta.
 
+### Interfaz
+
+Panel oscuro tipo *security operations*: fondo con rejilla y efectos sutiles, tarjetas *glass*, medidor semicircular de riesgo (0–100) y badges de veredicto en rojo, ámbar y verde. El flujo principal tiene pestañas **URL** / **Email**, panel de resultados en tiempo real e historial filtrable con paginación.
+
+---
+
+## Características principales
+
+| Funcionalidad | Descripción |
+|---------------|-------------|
+| **Análisis de URLs** | Evalúa enlaces sospechosos y devuelve score, veredicto e indicadores. |
+| **Análisis de emails** | Analiza el texto del mensaje (cuerpo o correo completo pegado). |
+| **Score visual 0–100** | Medidor gráfico con explicación en español generada por IA. |
+| **Historial y estadísticas** | Registro de análisis previos y métricas agregadas en el panel. |
+| **Tolerancia a fallos** | Si VirusTotal, URLScan u otros servicios no están disponibles, el análisis continúa con las señales restantes. |
+
+**Veredictos posibles:** `PHISHING` · `SOSPECHOSO` · `LEGÍTIMO`
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|------|------------|
+| Frontend | React 18 · Vite · Tailwind CSS |
+| Backend | Python 3.11 · FastAPI |
+| IA | Claude API (Anthropic) |
+| Threat intel | VirusTotal · URLScan.io |
+| Contenedores | Docker · Docker Compose |
+| Producción | Cloudflare Pages (frontend) · Render (backend) |
+
+---
+
+## Instalación y uso en local
+
+### Requisitos previos
+
+- [Git](https://git-scm.com/)
+- [Docker](https://www.docker.com/) 24+ y Docker Compose v2
+- Claves de API (al menos **Anthropic**; VirusTotal y URLScan son opcionales)
+
+### Pasos
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/MCM13/phishguard.git
+cd phishguard
+
+# 2. Crear el fichero de entorno desde la plantilla
+cp .env.example .env
+
+# 3. Editar .env y añadir tus claves (nunca las subas al repositorio)
+#    nano .env   # Linux/macOS
+#    notepad .env   # Windows
+
+# 4. Arrancar la aplicación
+docker compose up -d --build
 ```
-phishguard/
-├── backend/                 # API FastAPI (Render: servicio Docker)
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── database.py
-│   │   ├── cors_config.py
-│   │   ├── middleware/      # CORS, auditoría, rate limit, cabeceras, guards
-│   │   ├── models/          # SQLAlchemy (analyses, anthropic_usage)
-│   │   ├── routers/         # analyze.py, history.py
-│   │   └── services/        # extractores, VT, URLScan, Claude, sanitización
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/                # SPA React + Vite (Cloudflare Pages / Docker)
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── api.js
-│   │   └── App.jsx
-│   ├── .env.production      # VITE_API_URL (público, versionado)
-│   ├── package.json
-│   └── Dockerfile
-├── scripts/                 # Utilidades (tests E2E, etc.)
-│   └── security_e2e.ps1
-├── docker-compose.yml
-├── render.yaml              # Blueprint Render (referencia)
-├── .env.example
-└── README.md                # Documentación del repo (medidas de seguridad resumidas aquí)
-```
 
-## Endpoints
+| Servicio | URL local |
+|----------|-----------|
+| Frontend | http://localhost:3000 |
+| Backend (API) | http://localhost:8000 |
 
-| Método | Ruta                  | Descripción                                                       |
-| ------ | --------------------- | ----------------------------------------------------------------- |
-| POST   | `/api/analyze/url`    | Analiza una URL. Body: `{ "url": "..." }`                         |
-| POST   | `/api/analyze/email`  | Analiza el texto de un email. Body: `{ "content": "..." }`        |
-| GET    | `/api/history`        | Historial paginado (`?page=1&page_size=20&verdict=PHISHING`)      |
-| GET    | `/api/stats`          | Estadísticas globales                                              |
-| GET    | `/`                   | Healthcheck                                                       |
+Para detener los contenedores: `docker compose down`
 
-Documentación Swagger autogenerada en `http://localhost:8000/docs`.
+> Las carpetas del proyecto deben llamarse **`frontend/`** y **`scripts/`** para que Docker y los proveedores de despliegue resuelvan las rutas correctamente.
+
+### Desarrollo sin Docker (opcional)
+
+**Backend:** `cd backend` → entorno virtual → `pip install -r requirements.txt` → `uvicorn app.main:app --reload --port 8000`
+
+**Frontend:** `cd frontend` → `npm install` → `npm run dev` (configura `VITE_API_URL` en `.env` apuntando al backend local).
+
+---
 
 ## Variables de entorno
 
-Crea un fichero `.env` en la raíz copiando `.env.example`:
+Copia `.env.example` a `.env` en la raíz del proyecto. **Todas las claves y secretos van solo en `.env` o en el panel de tu proveedor de hosting** — nunca en el código ni en commits.
 
-```bash
-cp .env.example .env
+| Variable | ¿Obligatoria? | Uso |
+|----------|:-------------:|-----|
+| `ANTHROPIC_API_KEY` | Sí* | Clave de la API de Anthropic (Claude). |
+| `CLAUDE_MODEL` | No | Identificador del modelo de Claude a utilizar. |
+| `ANTHROPIC_MAX_PER_HOUR` | No | Control de uso de la API de IA (ventana horaria). |
+| `ANTHROPIC_MAX_PER_DAY` | No | Control de uso de la API de IA (ventana diaria). |
+| `VIRUSTOTAL_API_KEY` | No | Reputación de URLs vía VirusTotal. |
+| `URLSCAN_API_KEY` | No | Informes de URLScan.io; si falta, se omite sin error. |
+| `VITE_API_URL` | No | URL pública del backend que usa el navegador (build del frontend). |
+| `ALLOWED_ORIGINS` | No | Orígenes permitidos para CORS (lista separada por comas). |
+| `FRONTEND_URL` | No | URL pública del frontend (útil en producción). |
+| `DATABASE_URL` | No | Cadena de conexión a la base de datos del backend. |
+
+\* Sin clave de Anthropic el sistema puede operar con capacidades reducidas según la configuración del despliegue.
+
+En **Render** y **Cloudflare Pages** define las mismas variables en el panel de Environment / Build variables de cada servicio.
+
+---
+
+## Estructura del proyecto
+
+```
+phishguard/
+├── backend/              # API REST (FastAPI)
+│   ├── app/              # Lógica de aplicación, rutas y servicios
+│   ├── requirements.txt
+│   └── Dockerfile
+├── frontend/             # SPA React (Vite)
+│   ├── src/
+│   │   ├── components/   # Analizadores, resultados, historial…
+│   │   ├── pages/
+│   │   └── api.js        # Cliente HTTP hacia el backend
+│   ├── package.json
+│   └── Dockerfile
+├── scripts/              # Utilidades de desarrollo y pruebas
+├── docker-compose.yml    # Orquestación local
+├── render.yaml           # Referencia de despliegue backend
+├── .env.example          # Plantilla de variables (sin secretos)
+└── README.md
 ```
 
-Variables soportadas:
+---
 
-| Variable               | Obligatoria | Descripción                                                              |
-| ---------------------- | ----------- | ------------------------------------------------------------------------ |
-| `ANTHROPIC_API_KEY`    | Sí          | API key de Anthropic Claude.                                             |
-| `CLAUDE_MODEL`         | No          | ID del modelo de Claude a usar. Por defecto `claude-sonnet-4-6`. Ver [Modelos disponibles](#modelos-de-claude-disponibles). |
-| `ANTHROPIC_MAX_PER_HOUR` | No        | Máximo de llamadas a Claude por hora (defecto `10`). `0` = sin límite horario. |
-| `ANTHROPIC_MAX_PER_DAY`  | No        | Máximo de llamadas a Claude por día UTC (defecto `20`). `0` = sin límite diario. |
-| `VIRUSTOTAL_API_KEY`   | No          | API key del plan **Public API** (gratis). Ver sección VirusTotal más abajo. |
-| `URLSCAN_API_KEY`      | No          | Si falta, se omite URLScan sin romper el análisis.                       |
-| `VITE_API_URL`         | No          | URL pública del backend visible desde el navegador. Por defecto `http://localhost:8000`. |
-| `DATABASE_URL`         | No          | SQLite. Local: `sqlite:///./phishguard.db`. Docker: `sqlite:////data/phishguard.db`. Render: `sqlite:////tmp/phishguard.db`. |
-| `ALLOWED_ORIGINS`      | No          | Lista CSV de orígenes CORS. En Render debe incluir la URL exacta del frontend. |
-| `FRONTEND_URL`         | No          | URL pública del frontend; en Render se añade sola a CORS si falta en `ALLOWED_ORIGINS`. |
+## Despliegue en producción
 
-> **Importante:** si VirusTotal o URLScan no están configurados o fallan, el análisis continúa igualmente usando únicamente Claude + las features locales.
+PhishGuard está pensado para un despliegue **desacoplado**:
 
-> **Cuota Anthropic:** al superar los límites horario/diario, PhishGuard **no llama a Claude** y devuelve un veredicto heurístico local (sin gastar créditos). El consumo se muestra en `GET /api/stats` bajo `anthropic_quota`.
+| Componente | Plataforma | Notas |
+|------------|------------|-------|
+| **Frontend** | [Cloudflare Pages](https://pages.cloudflare.com) | Build desde la carpeta `frontend/` (`npm ci && npm run build`, salida `dist`). Configura `VITE_API_URL` con la URL pública de tu API. |
+| **Backend** | [Render](https://render.com) | Servicio Docker desde `backend/`. Variables de entorno y claves en el panel de Render. |
 
-### VirusTotal (API gratuita)
+Tras cada cambio en `VITE_API_URL` hay que **volver a desplegar el frontend** (se inyecta en tiempo de build). Mantén `ALLOWED_ORIGINS` alineado con el dominio real de tu aplicación.
 
-PhishGuard **ya integra** VirusTotal API v3 (`backend/app/services/virustotal.py`). Solo necesitas la clave:
+Consulta `render.yaml` y `.env.example` como referencia; los valores concretos de dominio y claves se configuran solo en los paneles de cada proveedor.
 
-1. Crea cuenta en [virustotal.com](https://www.virustotal.com).
-2. Ve a [My API key](https://www.virustotal.com/gui/my-apikey) y copia tu clave.
-3. Añádela como `VIRUSTOTAL_API_KEY` en `.env` (local) o en **Render → Environment** (producción).
-4. Redeploy del backend.
+---
 
-El plan **Public API** es gratuito para uso personal/educativo (no comercial intensivo). Límites habituales: **4 peticiones/minuto** y **500/día** — suficiente para PhishGuard (1 consulta por análisis de URL).
+## Contribuir
 
-Si la URL no está en la base de VirusTotal, se envía para análisis y en esa petición puede mostrarse 0 detecciones; en análisis posteriores ya tendrá datos.
+Las contribuciones son bienvenidas.
 
-### Modelos de Claude disponibles
+1. Haz **fork** del repositorio.
+2. Crea una rama: `git checkout -b feature/mi-mejora`
+3. Realiza tus cambios con commits claros.
+4. Abre un **Pull Request** describiendo el problema y la solución.
 
-El modelo a utilizar se configura con la variable `CLAUDE_MODEL` en el `.env`. Estos son los IDs recomendados:
+### Seguridad
 
-| Modelo                          | Recomendación                          | Uso típico                                     |
-| ------------------------------- | -------------------------------------- | ---------------------------------------------- |
-| `claude-sonnet-4-6`             | **Recomendado** (por defecto)          | Mejor balance calidad / coste / velocidad.     |
-| `claude-opus-4-6`               | Máxima calidad                         | Análisis más matizados, mayor coste y latencia.|
-| `claude-haiku-4-5-20251001`     | Más rápido y económico                 | Alto volumen, latencia baja.                   |
+Si descubres una vulnerabilidad, **no abras un issue público** con detalles explotables. Consulta [SECURITY.md](SECURITY.md) para el proceso de divulgación responsable. Si ese fichero no está publicado aún, usa las [**Security Advisories**](https://github.com/MCM13/phishguard/security/advisories) privadas de GitHub.
 
-Cambiar de modelo es tan sencillo como editar `.env` y recrear el contenedor:
+---
 
-```bash
-# Edita .env y cambia, por ejemplo, a Opus
-sed -i 's/^CLAUDE_MODEL=.*/CLAUDE_MODEL=claude-opus-4-6/' .env
+## Licencia
 
-# Recreación del contenedor (NO uses 'restart', no recarga el .env)
-docker compose up -d backend
-```
+Este proyecto se distribuye bajo la licencia **MIT**. Consulta el fichero [LICENSE](LICENSE) para el texto completo.
 
-Para listar todos los modelos disponibles con tu API key:
+---
 
-```bash
-curl https://api.anthropic.com/v1/models \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
-  -H "anthropic-version: 2023-06-01"
-```
+## Aviso legal
 
-## Instalación rápida con Docker (recomendado)
-
-Requisitos: Docker 24+ y Docker Compose v2.
-
-```bash
-# 1. Copia el fichero de variables y rellena tus claves
-cp .env.example .env
-nano .env
-
-# 2. Construye y arranca los contenedores
-docker compose up -d --build
-
-# 3. Comprueba que están vivos
-curl http://localhost:8000/         # backend
-xdg-open http://localhost:3000      # frontend (o ábrelo en el navegador)
-```
-
-- Frontend: `http://localhost:3000`
-- Backend:  `http://localhost:8000` (Swagger en `/docs`)
-
-Para parar:
-
-```bash
-docker compose down
-```
-
-La base de datos SQLite persiste en el volumen Docker `phishguard-data`.
-
-## Despliegue en Render
-
-En Render el filesystem del contenedor es **efímero**: si `DATABASE_URL` apunta a `./phishguard.db` en el directorio de la app, puede fallar con *readonly database* o perder datos en cada redeploy.
-
-### Variables obligatorias en el servicio **backend** (Render → Environment)
-
-| Variable | Valor ejemplo | Motivo |
-| -------- | ------------- | ------ |
-| `ANTHROPIC_API_KEY` | `sk-ant-...` | Sin esto solo hay análisis heurístico. |
-| `DATABASE_URL` | `sqlite:////tmp/phishguard.db` | Ruta escribible en Render (4 barras = ruta absoluta `/tmp/...`). |
-| `FRONTEND_URL` | `https://phishguard.cmmario.com` | Origen del navegador; se añade a CORS automáticamente. |
-| `ALLOWED_ORIGINS` | `https://phishguard.cmmario.com` | Debe coincidir **exactamente** con la URL del frontend (incluye `https://`, sin `/` final). Si también usas `www`, añádelo: `https://phishguard.cmmario.com,https://www.phishguard.cmmario.com` |
-
-> Si el frontend llama al API pero ves errores en el navegador (estadísticas vacías, CORS), casi siempre es `ALLOWED_ORIGINS` / `FRONTEND_URL` que no incluyen el dominio desde el que abres la app.
-
-### Persistir la base de datos entre redeploys (opcional)
-
-1. En Render → backend → **Disks** → añade un Persistent Disk montado en `/var/data`.
-2. Configura `DATABASE_URL=sqlite:////var/data/phishguard.db`.
-
-### Servicio **frontend** en Render
-
-- Build arg / variable de build: `VITE_API_URL=https://phishguard-backend-qszu.onrender.com` (tu URL real del backend).
-- Tras cambiar `VITE_API_URL` hay que **volver a desplegar** el frontend (se inyecta en build-time).
-
-Referencia: fichero `render.yaml` en la raíz del repo.
-
-### Cloudflare Pages (frontend)
-
-En el panel de Pages, configura el repositorio con:
-
-| Campo | Valor |
-|-------|--------|
-| **Root directory** | `frontend` |
-| **Build command** | `npm ci && npm run build` |
-| **Build output directory** | `dist` |
-| **Variable de entorno** | `VITE_API_URL` = URL de tu backend (ej. `https://phishguard-backend-qszu.onrender.com`) |
-
-No uses la carpeta `Interfaz` como raíz; debe ser **`frontend`**.
-
-## Instalación manual (desarrollo local)
-
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate          # Linux/macOS
-# .venv\Scripts\Activate.ps1       # Windows PowerShell
-
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-...
-export VIRUSTOTAL_API_KEY=...      # opcional
-export URLSCAN_API_KEY=...         # opcional
-
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-# Apunta al backend local
-echo "VITE_API_URL=http://localhost:8000" > .env
-npm run dev
-```
-
-Abre `http://localhost:3000` en el navegador.
-
-## Despliegue en VPS Ubuntu 22.04 (Hetzner)
-
-```bash
-# 1. Instalar Docker y Compose
-sudo apt update && sudo apt install -y docker.io docker-compose-plugin
-sudo systemctl enable --now docker
-
-# 2. Clonar el repositorio
-git clone https://github.com/tu-usuario/phishguard.git
-cd phishguard
-
-# 3. Configurar variables de entorno
-cp .env.example .env
-nano .env
-# - Pon tus API keys
-# - Cambia VITE_API_URL a http://TU_IP_PUBLICA:8000 (o tu dominio)
-
-# 4. Construir y arrancar
-sudo docker compose up -d --build
-
-# 5. Abrir puertos en el firewall
-sudo ufw allow 3000/tcp
-sudo ufw allow 8000/tcp
-```
-
-Para producción real se recomienda colocar un reverse proxy (Nginx o Caddy) con HTTPS delante de ambos servicios y restringir `ALLOWED_ORIGINS` a tu dominio.
-
-### Actualizar a una nueva versión
-
-```bash
-git pull
-sudo docker compose up -d --build
-```
-
-## Funcionamiento interno (resumen)
-
-1. **Extracción de features:** longitud, subdominios, palabras clave (`login`, `paypal`, `verify`…), caracteres sospechosos (`@`, `--`, `%`, `~`), TLDs inusuales, HTTPS y edad del dominio vía `python-whois` (menos de 30 días → alta sospecha).
-2. **Consulta externa:** VirusTotal (detecciones y categorías) y URLScan.io (informes previos del dominio). Ambas son **opcionales** y tolerantes a fallos.
-3. **Decisión IA:** Claude recibe todas las señales y devuelve `score`, `verdict`, `indicators` y `explanation` en JSON estricto.
-4. **Persistencia:** cada análisis se guarda en SQLite y queda accesible desde `/api/history` y la página *Historial*.
-
-Si Claude no responde correctamente (sin clave, error de red, JSON inválido), el sistema cae a un **veredicto heurístico** generado localmente para que el usuario siempre reciba un resultado.
-
-## Aviso
-
-Los veredictos son orientativos y deben revisarse antes de tomar decisiones críticas de seguridad. La herramienta puede generar falsos positivos y negativos.
+Los resultados de PhishGuard son **orientativos**. Revisa siempre las alertas con criterio experto antes de bloquear dominios, reportar incidentes o tomar decisiones operativas. Pueden producirse falsos positivos y falsos negativos.
