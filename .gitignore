@@ -19,6 +19,11 @@ venv/
 *.db
 *.sqlite
 *.sqlite3
+*.db.bak
+
+# Carpetas legacy (no usar; el proyecto usa frontend/ y scripts/)
+Interfaz/
+guiones/
 
 # Node / Vite
 node_modules/

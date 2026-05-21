@@ -1,0 +1,51 @@
+# Blueprint de referencia para desplegar PhishGuard en Render.
+# https://render.com/docs/blueprint-spec
+#
+# Ajusta los nombres de servicio y URLs a tu cuenta antes de aplicar.
+
+services:
+  - type: web
+    name: phishguard-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-6
+      - key: ANTHROPIC_MAX_PER_HOUR
+        value: "10"
+      - key: ANTHROPIC_MAX_PER_DAY
+        value: "20"
+      - key: VIRUSTOTAL_API_KEY
+        sync: false
+      # SQLite en /tmp (escribible). Para persistir entre redeploys, monta un
+      # Persistent Disk en /var/data y usa: sqlite:////var/data/phishguard.db
+      - key: DATABASE_URL
+        value: sqlite:////tmp/phishguard.db
+      # Frontend en dominio propio (https://phishguard.cmmario.com)
+      - key: FRONTEND_URL
+        value: https://phishguard.cmmario.com
+      - key: ALLOWED_ORIGINS
+        value: https://phishguard.cmmario.com
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: LOG_LEVEL
+        value: INFO
+
+  - type: web
+    name: phishguard-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    dockerCommand: ""
+    envVars:
+      - key: VITE_API_URL
+        value: https://phishguard-backend-qszu.onrender.com
+    buildCommand: ""
+    # El build arg VITE_API_URL se pasa en el Dockerfile; en Render configura
+    # también en Environment → Docker Build Args si usas el panel web.

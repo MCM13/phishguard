@@ -75,7 +75,18 @@ export default function ResultCard({ result }) {
           {typeof result.virustotal_detections === 'number' && (
             <div className="text-xs text-slate-400">
               <span className="font-semibold text-slate-300">VirusTotal:</span>{' '}
-              {result.virustotal_detections} motores marcaron esta URL.
+              {result.virustotal_available === false ? (
+                <span className="text-amber-300/90">
+                  no configurado o sin datos para esta URL (añade VIRUSTOTAL_API_KEY en el
+                  servidor).
+                </span>
+              ) : (
+                <>
+                  {result.virustotal_detections} de{' '}
+                  {result.virustotal_total_engines ?? '?'} motores marcaron esta URL como
+                  maliciosa o sospechosa.
+                </>
+              )}
             </div>
           )}
 

@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from app.cors_config import get_allowed_origins
 from app.database import init_db
 from app.middleware.audit_log import AuditLogMiddleware
 from app.middleware.request_guards import (
@@ -42,13 +43,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS: en desarrollo permitimos cualquier origen; en producción se puede
-# restringir mediante la variable de entorno ALLOWED_ORIGINS.
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
-allowed_origins = (
-    ["*"] if allowed_origins_env.strip() == "*"
-    else [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
-)
+# CORS: en producción (Render, dominio propio) debe coincidir el origen del
+# frontend con ALLOWED_ORIGINS o FRONTEND_URL. Ver README sección Render.
+allowed_origins = get_allowed_origins()
 
 app.add_middleware(
     CORSMiddleware,

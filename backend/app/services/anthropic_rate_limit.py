@@ -38,9 +38,9 @@ def _parse_limit(name: str, default: int) -> int:
     return max(0, value)
 
 
-# Límites por defecto conservadores para no vaciar créditos en desarrollo/demo
-MAX_PER_HOUR = _parse_limit("ANTHROPIC_MAX_PER_HOUR", default=15)
-MAX_PER_DAY = _parse_limit("ANTHROPIC_MAX_PER_DAY", default=50)
+# Límites por defecto conservadores para no vaciar créditos en producción/demo
+MAX_PER_HOUR = _parse_limit("ANTHROPIC_MAX_PER_HOUR", default=10)
+MAX_PER_DAY = _parse_limit("ANTHROPIC_MAX_PER_DAY", default=20)
 
 
 def _count_since(since: datetime) -> int:

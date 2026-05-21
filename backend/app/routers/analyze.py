@@ -163,6 +163,8 @@ async def analyze_url_endpoint(
             "indicators": record.indicators,
             "ai_explanation": record.ai_explanation,
             "virustotal_detections": record.virustotal_detections,
+            "virustotal_available": bool(vt_result.get("available")),
+            "virustotal_total_engines": int(vt_result.get("total_engines") or 0),
             "timestamp": record.timestamp.isoformat(),
         }
     except HTTPException:
