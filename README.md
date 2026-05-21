@@ -51,8 +51,7 @@ phishguard/
 ├── docker-compose.yml
 ├── render.yaml              # Blueprint Render (referencia)
 ├── .env.example
-├── SECURITY.md
-└── README.md
+└── README.md                # Documentación del repo (medidas de seguridad resumidas aquí)
 ```
 
 ## Endpoints

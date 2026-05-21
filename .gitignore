@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Documentación de seguridad personal (resumen propio; no versionar en GitHub)
+SECURITY.md
+
 # Python
 __pycache__/
 *.py[cod]
