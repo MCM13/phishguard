@@ -1,36 +1,31 @@
 import React from 'react';
+import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
 
-// Colores e iconos por severidad para mantener consistencia visual
 const SEVERITY_STYLES = {
   high: {
     label: 'Alta',
-    bg: 'bg-red-500/10',
-    border: 'border-red-500/40',
-    text: 'text-red-300',
-    dot: 'bg-red-500',
+    icon: AlertTriangle,
+    cls: 'text-red-400',
+    ring: 'ring-red-500/30 bg-red-500/5',
   },
   medium: {
     label: 'Media',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/40',
-    text: 'text-amber-300',
-    dot: 'bg-amber-500',
+    icon: AlertCircle,
+    cls: 'text-amber-400',
+    ring: 'ring-amber-500/30 bg-amber-500/5',
   },
   low: {
     label: 'Baja',
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/40',
-    text: 'text-emerald-300',
-    dot: 'bg-emerald-500',
+    icon: Info,
+    cls: 'text-sky-400',
+    ring: 'ring-sky-500/30 bg-sky-500/5',
   },
 };
 
 export default function IndicatorList({ indicators = [] }) {
   if (!indicators || indicators.length === 0) {
     return (
-      <p className="text-sm text-slate-400">
-        No se han detectado indicadores relevantes.
-      </p>
+      <p className="text-sm text-slate-500">No se han detectado indicadores relevantes.</p>
     );
   }
 
@@ -38,24 +33,24 @@ export default function IndicatorList({ indicators = [] }) {
     <ul className="space-y-2">
       {indicators.map((indicator, idx) => {
         const sev = SEVERITY_STYLES[indicator.severity] || SEVERITY_STYLES.low;
+        const Icon = sev.icon;
         return (
           <li
             key={`${indicator.name}-${idx}`}
-            className={`rounded-lg border ${sev.border} ${sev.bg} p-3`}
+            className={`flex items-start gap-3 rounded-lg p-3 ring-1 ${sev.ring}`}
+            style={{ animation: `fadeUp 0.4s ${idx * 60}ms backwards ease-out` }}
           >
-            <div className="flex items-start gap-3">
-              <span className={`mt-1.5 inline-block h-2.5 w-2.5 rounded-full ${sev.dot}`} />
-              <div className="flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-slate-100">{indicator.name}</span>
-                  <span className={`text-xs font-semibold uppercase ${sev.text}`}>
-                    {sev.label}
-                  </span>
-                </div>
-                {indicator.detail && (
-                  <p className="mt-1 text-sm text-slate-300">{indicator.detail}</p>
-                )}
+            <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${sev.cls}`} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-slate-100">{indicator.name}</span>
+                <span className={`text-[10px] font-semibold uppercase tracking-wider ${sev.cls}`}>
+                  {sev.label}
+                </span>
               </div>
+              {indicator.detail && (
+                <p className="mt-0.5 text-sm leading-relaxed text-slate-300">{indicator.detail}</p>
+              )}
             </div>
           </li>
         );

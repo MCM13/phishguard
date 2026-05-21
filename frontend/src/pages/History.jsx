@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { History as HistoryIcon } from 'lucide-react';
 import HistoryTable from '../components/HistoryTable.jsx';
 import { getHistory, friendlyError } from '../api.js';
 
-// Página con el historial de análisis. Permite filtrar por veredicto.
 export default function History() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,33 +34,24 @@ export default function History() {
     load();
   }, [page, verdict]);
 
+  const handleVerdictChange = (value) => {
+    setVerdict(value);
+    setPage(1);
+  };
+
   return (
     <div className="animate-fade-up space-y-8">
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Historial de análisis
-          </h1>
-          <p className="mt-2 text-slate-400">
-            Registro completo ordenado del más reciente al más antiguo.
-          </p>
+      <header className="text-center sm:text-left">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-400">
+          <HistoryIcon className="h-3.5 w-3.5 text-sky-400" />
+          Registro de análisis
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-slate-300">Filtrar:</label>
-          <select
-            value={verdict}
-            onChange={(e) => {
-              setVerdict(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none"
-          >
-            <option value="">Todos</option>
-            <option value="PHISHING">PHISHING</option>
-            <option value="SOSPECHOSO">SOSPECHOSO</option>
-            <option value="LEGÍTIMO">LEGÍTIMO</option>
-          </select>
-        </div>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-slate-100 md:text-4xl">
+          Historial de análisis
+        </h1>
+        <p className="mt-2 text-slate-400">
+          Registro completo ordenado del más reciente al más antiguo.
+        </p>
       </header>
 
       {error && (
@@ -69,31 +60,16 @@ export default function History() {
         </div>
       )}
 
-      <HistoryTable items={items} loading={loading} />
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 disabled:opacity-40"
-          >
-            Anterior
-          </button>
-          <span className="text-sm text-slate-400">
-            Página {page} de {totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 disabled:opacity-40"
-          >
-            Siguiente
-          </button>
-        </div>
-      )}
+      <HistoryTable
+        items={items}
+        loading={loading}
+        verdict={verdict}
+        onVerdictChange={handleVerdictChange}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={items.length}
+      />
     </div>
   );
 }

@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from 'react';
+import {
+  Activity,
+  AlertOctagon,
+  Brain,
+  Gauge,
+  Globe,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+  ScanSearch,
+} from 'lucide-react';
 import URLAnalyzer from '../components/URLAnalyzer.jsx';
 import EmailAnalyzer from '../components/EmailAnalyzer.jsx';
+import ResultCard from '../components/ResultCard.jsx';
 import { getStats } from '../api.js';
-
-const FEATURES = [
-  { label: 'Claude IA', color: 'text-violet-300 border-violet-500/30 bg-violet-500/10' },
-  { label: 'VirusTotal', color: 'text-sky-300 border-sky-500/30 bg-sky-500/10' },
-  { label: 'URLScan.io', color: 'text-cyan-300 border-cyan-500/30 bg-cyan-500/10' },
-  { label: 'Heurísticas', color: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10' },
-];
 
 export default function Dashboard() {
   const [tab, setTab] = useState('url');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
 
   const loadStats = async () => {
@@ -23,6 +32,8 @@ export default function Dashboard() {
     } catch (err) {
       if (import.meta.env.DEV) console.error(err);
       setStatsError(true);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -30,150 +41,196 @@ export default function Dashboard() {
     loadStats();
   }, []);
 
+  const handleResult = (data) => {
+    setResult(data);
+    if (data) loadStats();
+  };
+
+  const handleAnalyzeStart = () => {
+    setLoading(true);
+    setResult(null);
+  };
+
+  const detectionPct = () => {
+    if (stats?.detection_rate === undefined) return undefined;
+    const rate = stats.detection_rate;
+    return `${Math.round(rate * (rate <= 1 ? 100 : 1))}%`;
+  };
+
+  const quotaLabel = () => {
+    const daily = stats?.anthropic_quota?.daily;
+    if (daily && !daily.unlimited && daily.limit != null) {
+      return `${daily.remaining ?? 0}/${daily.limit}`;
+    }
+    return stats?.anthropic_quota ? '—' : undefined;
+  };
+
   return (
     <div className="space-y-10">
-      <header className="animate-fade-up space-y-6 text-center md:text-left">
-        <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-300">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500" />
-          </span>
-          Motor de análisis activo
+      <section className="animate-fade-up relative text-center">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-300">
+          <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400 shadow-[0_0_8px] shadow-sky-400" />
+          Centro de operaciones · PhishGuard
         </div>
-
-        <div className="space-y-3">
-          <h1 className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
-            <span className="text-gradient-hero">Detector de phishing</span>
-            <br />
-            <span className="text-white">con inteligencia artificial</span>
-          </h1>
-          <p className="mx-auto max-w-2xl text-base text-slate-400 md:mx-0 md:text-lg">
-            Analiza URLs y correos sospechosos en segundos. Combina IA, reputación
-            global y señales locales en un único veredicto accionable.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-2 md:justify-start">
-          {FEATURES.map((f) => (
+        <h1 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+          <span className="text-gradient">Detecta phishing</span>
+          <br />
+          <span className="text-slate-100">antes de que te alcance.</span>
+        </h1>
+        <p className="mx-auto mt-5 max-w-2xl text-base text-slate-400">
+          Analiza URLs y correos sospechosos con inteligencia artificial, threat intel y
+          heurísticas avanzadas. Resultados en segundos.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          {[
+            { icon: Brain, label: 'Claude IA' },
+            { icon: ShieldCheck, label: 'VirusTotal' },
+            { icon: Globe, label: 'URLScan.io' },
+            { icon: Zap, label: 'Heurísticas' },
+          ].map(({ icon: Icon, label }) => (
             <span
-              key={f.label}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${f.color}`}
+              key={label}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-slate-300"
             >
-              {f.label}
+              <Icon className="h-3.5 w-3.5 text-sky-400" />
+              {label}
             </span>
           ))}
         </div>
-      </header>
+      </section>
 
-      <StatsPanel stats={stats} hasError={statsError} />
+      {statsError && (
+        <div className="animate-fade-up rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+          No se pudieron cargar las estadísticas. ¿Está el backend en marcha?
+        </div>
+      )}
 
-      <section className="glass-card animate-fade-up p-6 md:p-8" style={{ animationDelay: '0.1s' }}>
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Nuevo análisis</h2>
-            <p className="text-sm text-slate-400">Elige el tipo de contenido a inspeccionar</p>
+      <section className="animate-fade-up grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="Total analizados" value={stats?.total_analyzed} icon={Activity} loading={statsLoading} />
+        <StatCard
+          label="Phishing detectados"
+          value={stats?.phishing_detected}
+          icon={AlertOctagon}
+          loading={statsLoading}
+          tone="phish"
+        />
+        <StatCard label="% detección" value={detectionPct()} icon={Gauge} loading={statsLoading} />
+        <StatCard
+          label="Score medio"
+          value={stats?.avg_score !== undefined ? Math.round(stats.avg_score) : undefined}
+          icon={Gauge}
+          loading={statsLoading}
+        />
+        {quotaLabel() !== undefined && (
+          <StatCard label="Cuota IA (hoy)" value={quotaLabel()} icon={Sparkles} loading={statsLoading} tone="brand" />
+        )}
+      </section>
+
+      {stats?.anthropic_quota && !stats.anthropic_quota.can_call_claude && (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          {stats.anthropic_quota.block_reason} Los análisis seguirán con reglas heurísticas locales.
+        </p>
+      )}
+
+      <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+        <div className="glass glass-hover rounded-2xl p-6">
+          <div className="mb-5">
+            <h2 className="font-display text-lg font-semibold text-slate-100">Nuevo análisis</h2>
+            <p className="text-xs text-slate-500">Selecciona el tipo de amenaza a inspeccionar.</p>
           </div>
-          <div className="inline-flex rounded-xl border border-white/[0.08] bg-slate-950/80 p-1">
-            <TabButton active={tab === 'url'} onClick={() => setTab('url')}>
-              URL
-            </TabButton>
-            <TabButton active={tab === 'email'} onClick={() => setTab('email')}>
-              Email
-            </TabButton>
+
+          <div className="relative mb-5 grid grid-cols-2 rounded-xl border border-white/10 bg-slate-950/40 p-1">
+            <span
+              className="absolute inset-y-1 w-[calc(50%-4px)] rounded-lg bg-gradient-to-r from-sky-500/90 to-cyan-400/90 shadow-[0_0_20px_-4px] shadow-sky-500/60 transition-all duration-300"
+              style={{ left: tab === 'url' ? 4 : 'calc(50% + 0px)' }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setTab('url');
+                setResult(null);
+              }}
+              className={`relative z-10 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition ${
+                tab === 'url' ? 'text-slate-950' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Globe className="h-4 w-4" /> URL
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTab('email');
+                setResult(null);
+              }}
+              className={`relative z-10 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition ${
+                tab === 'email' ? 'text-slate-950' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Mail className="h-4 w-4" /> Email
+            </button>
           </div>
+
+          {tab === 'url' ? (
+            <URLAnalyzer onResult={handleResult} onLoading={setLoading} />
+          ) : (
+            <EmailAnalyzer onResult={handleResult} onLoading={setLoading} />
+          )}
         </div>
 
-        {tab === 'url' ? (
-          <URLAnalyzer onAnalyzed={loadStats} />
-        ) : (
-          <EmailAnalyzer onAnalyzed={loadStats} />
-        )}
+        <div className="min-h-[320px]">
+          {loading && <ResultSkeleton />}
+          {!loading && result && <ResultCard result={result} />}
+          {!loading && !result && <EmptyResultPanel />}
+        </div>
       </section>
     </div>
   );
 }
 
-function TabButton({ active, children, onClick }) {
+function StatCard({ label, value, icon: Icon, loading, tone }) {
+  const toneBorder = {
+    phish: 'hover:border-red-500/30',
+    brand: 'hover:border-sky-500/30',
+  };
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
-        active
-          ? 'bg-gradient-to-r from-sky-500 to-cyan-400 text-slate-950 shadow-md shadow-sky-500/30'
-          : 'text-slate-400 hover:text-white'
-      }`}
-    >
-      {children}
-    </button>
+    <div className={`glass glass-hover rounded-xl p-4 ${tone ? toneBorder[tone] || '' : ''}`}>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          {label}
+        </span>
+        <Icon className="h-4 w-4 text-slate-600" />
+      </div>
+      <div className="font-display text-2xl font-bold tabular-nums text-slate-100 sm:text-3xl">
+        {loading ? <span className="skeleton inline-block h-8 w-16 rounded-lg" /> : (value ?? '—')}
+      </div>
+    </div>
   );
 }
 
-function StatsPanel({ stats, hasError }) {
-  if (hasError) {
-    return (
-      <div className="animate-fade-up rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-        No se pudieron cargar las estadísticas. ¿Está el backend en marcha?
-      </div>
-    );
-  }
-
-  const items = [
-    { label: 'Total analizados', value: stats?.total_analyzed ?? '—', accent: 'sky' },
-    { label: 'Phishing detectados', value: stats?.phishing_detected ?? '—', accent: 'red' },
-    { label: '% detección', value: stats ? `${stats.detection_rate}%` : '—', accent: 'amber' },
-    { label: 'Score medio', value: stats ? stats.avg_score : '—', accent: 'violet' },
-  ];
-
-  const accentRing = {
-    sky: 'hover:border-sky-500/40 hover:shadow-sky-500/15',
-    red: 'hover:border-red-500/40 hover:shadow-red-500/15',
-    amber: 'hover:border-amber-500/40 hover:shadow-amber-500/15',
-    violet: 'hover:border-violet-500/40 hover:shadow-violet-500/15',
-  };
-
-  const quota = stats?.anthropic_quota;
-  const daily = quota?.daily;
-  const quotaLabel =
-    daily && !daily.unlimited && daily.limit != null
-      ? `${daily.remaining ?? 0}/${daily.limit}`
-      : null;
-
+function ResultSkeleton() {
   return (
-    <div className="animate-fade-up space-y-3" style={{ animationDelay: '0.05s' }}>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {items.map((item) => (
-          <div
-            key={item.label}
-            className={`glass-card-hover p-4 ${accentRing[item.accent]}`}
-          >
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-              {item.label}
-            </div>
-            <div className="mt-2 text-3xl font-bold tabular-nums text-white">{item.value}</div>
-          </div>
-        ))}
-        {quotaLabel && (
-          <div
-            className={`glass-card-hover p-4 ${
-              quota?.can_call_claude
-                ? 'border-sky-500/20 hover:border-sky-500/40'
-                : 'border-amber-500/30 hover:border-amber-500/40'
-            }`}
-          >
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-              Cuota IA (hoy)
-            </div>
-            <div className="mt-2 text-3xl font-bold tabular-nums text-white">{quotaLabel}</div>
-            <div className="mt-1 text-xs text-slate-500">llamadas restantes</div>
-          </div>
-        )}
+    <div className="glass rounded-2xl p-8">
+      <div className="flex flex-col items-center gap-6">
+        <div className="skeleton h-28 w-full max-w-[280px] rounded-full" />
+        <div className="w-full space-y-3">
+          <div className="skeleton h-6 w-40 rounded-lg" />
+          <div className="skeleton h-4 w-full rounded-lg" />
+          <div className="skeleton h-4 w-3/4 rounded-lg" />
+          <div className="skeleton h-20 w-full rounded-xl" />
+        </div>
       </div>
-      {quota && !quota.can_call_claude && (
-        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          {quota.block_reason} Los análisis seguirán con reglas heurísticas locales.
-        </p>
-      )}
+    </div>
+  );
+}
+
+function EmptyResultPanel() {
+  return (
+    <div className="glass flex h-full min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 p-8 text-center">
+      <ScanSearch className="mb-4 h-12 w-12 text-slate-600" />
+      <p className="font-display text-lg font-medium text-slate-400">Sin resultados aún</p>
+      <p className="mt-2 max-w-xs text-sm text-slate-500">
+        Introduce una URL o pega un email para ver el análisis aquí.
+      </p>
     </div>
   );
 }

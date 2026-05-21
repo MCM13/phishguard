@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
+import { Shield } from 'lucide-react';
 import PageBackground from './components/PageBackground.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import History from './pages/History.jsx';
@@ -9,33 +10,35 @@ export default function App() {
     <div className="relative min-h-screen text-slate-100">
       <PageBackground />
 
-      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-slate-950/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <NavLink
-            to="/"
-            className="group flex items-center gap-3 transition hover:opacity-90"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/30 bg-sky-500/10 shadow-lg shadow-sky-500/20 transition group-hover:border-sky-400/50 group-hover:shadow-sky-500/30">
-              <ShieldLogo />
-            </span>
-            <div>
-              <span className="block text-lg font-bold tracking-tight text-white">
+      <header className="sticky top-0 z-40 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+          <NavLink to="/" className="group flex items-center gap-2.5">
+            <div className="relative grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-sky-400 to-indigo-500 shadow-[0_0_20px_-4px] shadow-sky-500/60 transition group-hover:shadow-sky-400/80">
+              <Shield className="h-5 w-5 text-slate-950" strokeWidth={2.5} />
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-base font-bold tracking-tight text-slate-100">
                 PhishGuard
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-sky-400/80">
-                Threat Intel
+              <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                Threat intel · AI
               </span>
             </div>
           </NavLink>
 
-          <nav className="flex items-center gap-1 rounded-xl border border-white/[0.06] bg-slate-900/50 p-1 backdrop-blur">
+          <nav className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1">
             <NavItem to="/">Analizar</NavItem>
             <NavItem to="/history">Historial</NavItem>
           </nav>
+
+          <div className="hidden items-center gap-2 sm:flex">
+            <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400" />
+            <span className="text-xs text-slate-400">Sistema operativo</span>
+          </div>
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-6xl px-4 py-8 md:py-12">
+      <main className="relative mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 md:pt-10">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/history" element={<History />} />
@@ -55,34 +58,19 @@ function NavItem({ to, children }) {
       to={to}
       end
       className={({ isActive }) =>
-        `rounded-lg px-4 py-2 text-sm font-medium transition ${
-          isActive
-            ? 'bg-gradient-to-r from-sky-500/20 to-cyan-500/10 text-sky-300 shadow-inner'
-            : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+        `relative rounded-full px-4 py-1.5 text-sm font-medium transition ${
+          isActive ? 'text-slate-950' : 'text-slate-300 hover:text-white'
         }`
       }
     >
-      {children}
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <span className="absolute inset-0 rounded-full bg-gradient-to-r from-sky-400 to-cyan-300 shadow-[0_0_20px_-4px] shadow-sky-400/70" />
+          )}
+          <span className="relative">{children}</span>
+        </>
+      )}
     </NavLink>
-  );
-}
-
-function ShieldLogo() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-sky-400"
-      aria-hidden="true"
-    >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
   );
 }

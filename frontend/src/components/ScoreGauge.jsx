@@ -1,67 +1,77 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
-// Medidor semicircular SVG que representa el score 0-100.
-// 0-30 verde, 31-60 amarillo, 61-100 rojo.
-const getColor = (score) => {
-  if (score <= 30) return '#22c55e';
-  if (score <= 60) return '#f59e0b';
-  return '#ef4444';
+const colorFor = (verdict) => {
+  if (verdict === 'PHISHING') {
+    return { stroke: '#ef4444', glow: 'rgba(239,68,68,0.6)', label: 'text-red-400' };
+  }
+  if (verdict === 'SOSPECHOSO') {
+    return { stroke: '#f59e0b', glow: 'rgba(245,158,11,0.55)', label: 'text-amber-400' };
+  }
+  return { stroke: '#10b981', glow: 'rgba(16,185,129,0.55)', label: 'text-emerald-400' };
 };
 
-const getLabel = (score) => {
+const labelForScore = (score) => {
   if (score <= 30) return 'Bajo riesgo';
   if (score <= 60) return 'Riesgo moderado';
   return 'Alto riesgo';
 };
 
-export default function ScoreGauge({ score = 0, size = 220 }) {
+export default function ScoreGauge({ score = 0, verdict = 'SOSPECHOSO' }) {
+  const [animated, setAnimated] = useState(0);
   const safeScore = Math.max(0, Math.min(100, Number(score) || 0));
-  const color = getColor(safeScore);
+  const { stroke, glow, label } = colorFor(verdict);
 
-  // Geometría del semicírculo
-  const stroke = 18;
-  const radius = (size - stroke) / 2;
-  const cx = size / 2;
-  const cy = size / 2;
-  // Semicírculo desde 180º a 360º
-  const circumference = Math.PI * radius;
-  const offset = circumference - (safeScore / 100) * circumference;
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(safeScore), 80);
+    return () => clearTimeout(t);
+  }, [safeScore]);
 
-  const isHighRisk = safeScore > 60;
+  const r = 80;
+  const c = Math.PI * r;
+  const offset = c - (animated / 100) * c;
+  const pulsing = safeScore > 60;
+  const gradId = `gauge-${verdict.replace(/\s/g, '')}`;
 
   return (
     <div
-      className={`flex flex-col items-center ${isHighRisk ? 'animate-pulse-slow' : ''}`}
+      className="relative flex flex-col items-center"
       aria-label={`Score ${safeScore} de 100`}
     >
-      <svg width={size} height={size / 2 + 12} viewBox={`0 0 ${size} ${size / 2 + 12}`}>
-        {/* Pista de fondo */}
+      <svg
+        viewBox="0 0 200 110"
+        className="w-full max-w-[280px]"
+        style={pulsing ? { filter: `drop-shadow(0 0 18px ${glow})` } : undefined}
+      >
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.7" />
+            <stop offset="100%" stopColor={stroke} stopOpacity="1" />
+          </linearGradient>
+        </defs>
         <path
-          d={`M ${stroke / 2} ${cy} A ${radius} ${radius} 0 0 1 ${size - stroke / 2} ${cy}`}
+          d="M 20 100 A 80 80 0 0 1 180 100"
           fill="none"
-          stroke="#1e293b"
-          strokeWidth={stroke}
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth="14"
           strokeLinecap="round"
         />
-        {/* Pista de progreso */}
         <path
-          d={`M ${stroke / 2} ${cy} A ${radius} ${radius} 0 0 1 ${size - stroke / 2} ${cy}`}
+          d="M 20 100 A 80 80 0 0 1 180 100"
           fill="none"
-          stroke={color}
-          strokeWidth={stroke}
+          stroke={`url(#${gradId})`}
+          strokeWidth="14"
           strokeLinecap="round"
-          strokeDasharray={circumference}
+          strokeDasharray={c}
           strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.6s ease, stroke 0.4s ease' }}
+          style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
       </svg>
-      <div className="-mt-10 text-center">
-        <div className="text-5xl font-bold tabular-nums" style={{ color }}>
-          {safeScore}
+      <div className="-mt-12 flex flex-col items-center">
+        <div className={`font-display text-5xl font-bold tabular-nums ${label}`}>
+          {Math.round(animated)}
         </div>
-        <div className="mt-1 text-xs uppercase tracking-widest text-slate-400">
-          {getLabel(safeScore)}
-        </div>
+        <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Riesgo / 100</div>
+        <div className="mt-1 text-[10px] text-slate-600">{labelForScore(safeScore)}</div>
       </div>
     </div>
   );
