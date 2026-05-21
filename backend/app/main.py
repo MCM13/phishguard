@@ -10,11 +10,22 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.database import init_db
+from app.middleware.audit_log import AuditLogMiddleware
+from app.middleware.request_guards import (
+    JSONContentTypeMiddleware,
+    MaxBodySizeMiddleware,
+    RequestTimeoutMiddleware,
+)
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.routers import analyze, history
+from app.services.rate_limit import limiter
 
 # Configuración de logging para producción
 logging.basicConfig(
@@ -46,6 +57,52 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# NOTA: Starlette ejecuta los middlewares en ORDEN INVERSO al de registro
+# (los últimos añadidos se ejecutan primero). El orden buscado de fuera
+# hacia dentro es:
+#   AuditLog → SecurityHeaders → MaxBodySize → ContentType → Timeout → RateLimit → handler
+# Por tanto los registramos en el orden inverso (el primero en código es el
+# más interno).
+
+# Rate limiting: el limiter se inyecta en app.state para que los routers
+# puedan referenciarlo, y el middleware procesa las cabeceras X-RateLimit-*.
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+# Timeout global de 30 s — antes del rate limit no tiene sentido,
+# pero antes del handler sí (cancela handlers lentos).
+app.add_middleware(RequestTimeoutMiddleware)
+
+# Validación de Content-Type antes de leer el body.
+app.add_middleware(JSONContentTypeMiddleware)
+
+# Tamaño máximo del body antes de cualquier procesamiento.
+app.add_middleware(MaxBodySizeMiddleware)
+
+# Cabeceras de seguridad HTTP en todas las respuestas (OWASP Secure Headers).
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Auditoría: registra todas las peticiones en JSON (timestamp, IP, ruta,
+# status, latencia y veredicto si aplica). NO loguea bodies ni API keys.
+# Va el primero registrado para que sea el MÁS EXTERNO y capture todo.
+app.add_middleware(AuditLogMiddleware)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    """Devuelve un 429 con mensaje claro en español cuando se excede el límite."""
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": (
+                "Has alcanzado el límite de peticiones por minuto. "
+                "Por favor, espera un momento antes de volver a intentarlo."
+            ),
+            "limit": str(exc.detail),
+        },
+        headers={"Retry-After": "60"},
+    )
 
 
 @app.on_event("startup")

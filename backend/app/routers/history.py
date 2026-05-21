@@ -9,12 +9,14 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.analysis import Analysis
+from app.services.anthropic_rate_limit import get_usage_status
+from app.services.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,9 @@ router = APIRouter(prefix="/api", tags=["history"])
 
 
 @router.get("/history")
+@limiter.limit("30/minute")
 def get_history(
+    request: Request,
     page: int = Query(1, ge=1, description="Número de página (1-indexada)"),
     page_size: int = Query(20, ge=1, le=100, description="Resultados por página"),
     verdict: Optional[str] = Query(
@@ -97,6 +101,7 @@ def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "phishing_detected": int(phishing),
             "detection_rate": round(float(detection_rate), 2),
             "avg_score": round(float(avg_score), 2),
+            "anthropic_quota": get_usage_status(),
         }
     except Exception as exc:
         logger.exception("Error calculando estadísticas: %s", exc)
