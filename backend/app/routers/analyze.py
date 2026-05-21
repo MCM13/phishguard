@@ -5,16 +5,21 @@ Router que expone los endpoints de análisis:
 
 Orquesta los servicios (extracción de features, VirusTotal, URLScan y
 Claude) y persiste los resultados en la base de datos.
-"""
 
-from __future__ import annotations
+NOTA: este módulo NO usa `from __future__ import annotations`. La razón
+es que el decorador `@limiter.limit` de slowapi cambia la firma de la
+función, y FastAPI necesita las anotaciones EVALUADAS en runtime para
+detectar correctamente el body Pydantic. Con annotations diferidas
+(PEP 563), todas las anotaciones quedan como ForwardRef strings y la
+detección falla devolviendo 422 ("missing in query").
+"""
 
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Dict
+from typing import Annotated, Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -27,6 +32,9 @@ from app.services import (
     urlscan,
     virustotal,
 )
+from app.services.rate_limit import limiter
+from app.services.text_sanitizer import safe_string, strip_html
+from app.services.url_validator import UnsafeURLError, validate_public_url
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +70,14 @@ def _persist_analysis(
     record = Analysis(
         id=str(uuid.uuid4()),
         type=analysis_type,
-        input_data=input_data[:10_000],
-        url=url,
+        # safe_string elimina caracteres de control y normaliza Unicode
+        # antes de persistir, evitando guardar bytes raros en SQLite.
+        input_data=safe_string(input_data, max_len=10_000),
+        url=safe_string(url, max_len=2048) if url else None,
         score=int(ai_result["score"]),
         verdict=ai_result["verdict"],
         indicators=ai_result.get("indicators", []),
-        ai_explanation=ai_result.get("explanation", ""),
+        ai_explanation=safe_string(ai_result.get("explanation", ""), max_len=5_000),
         virustotal_detections=vt_positives,
         timestamp=datetime.utcnow(),
     )
@@ -81,8 +91,13 @@ def _persist_analysis(
 
 
 @router.post("/url")
+@limiter.limit("10/minute")
 async def analyze_url_endpoint(
-    payload: URLAnalysisRequest,
+    request: Request,
+    # Annotated[Model, Body()] es obligatorio cuando se combina con
+    # `from __future__ import annotations` + @limiter.limit, porque el
+    # decorador altera la firma y FastAPI necesita la anotación explícita.
+    payload: Annotated[URLAnalysisRequest, Body()],
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -99,9 +114,18 @@ async def analyze_url_endpoint(
             detail="La URL no puede estar vacía.",
         )
 
+    # Validación de formato + anti-SSRF antes de tocar ningún servicio
+    try:
+        safe_url = validate_public_url(raw_url)
+    except UnsafeURLError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
     try:
         # 1. Extracción local de features
-        features = url_extractor.extract_url_features(raw_url)
+        features = url_extractor.extract_url_features(safe_url)
 
         # 2 y 3. Consultas externas (toleran fallos individuales)
         vt_result = await virustotal.analyze_url(features.get("url", raw_url))
@@ -122,11 +146,14 @@ async def analyze_url_endpoint(
         record = _persist_analysis(
             db,
             analysis_type="url",
-            input_data=raw_url,
-            url=features.get("url", raw_url),
+            input_data=safe_url,
+            url=features.get("url", safe_url),
             ai_result=ai_result,
             vt_positives=vt_positives,
         )
+
+        # Exponemos el veredicto al middleware de auditoría sin loguear la URL
+        request.state.audit_verdict = record.verdict
 
         return {
             "id": record.id,
@@ -149,8 +176,10 @@ async def analyze_url_endpoint(
 
 
 @router.post("/email")
+@limiter.limit("10/minute")
 async def analyze_email_endpoint(
-    payload: EmailAnalysisRequest,
+    request: Request,
+    payload: Annotated[EmailAnalysisRequest, Body()],
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -159,15 +188,18 @@ async def analyze_email_endpoint(
     Si el email incluye URLs, también se analiza la primera de ellas con
     VirusTotal para enriquecer el contexto que ve la IA.
     """
-    content = payload.content.strip()
-    if not content:
+    # Strip de HTML/JS/CSS antes de cualquier procesamiento. Aunque PhishGuard
+    # nunca renderiza este contenido, eliminamos carga activa por defensa en
+    # profundidad y para reducir prompt-injection vía emails maliciosos.
+    sanitized_content = strip_html(payload.content).strip()
+    if not sanitized_content:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El contenido del email no puede estar vacío.",
         )
 
     try:
-        features = email_extractor.extract_email_features(content)
+        features = email_extractor.extract_email_features(sanitized_content)
 
         # Si encontramos URLs, enriquecemos con datos de VirusTotal de la primera
         urls = features.get("urls_found") or []
@@ -180,11 +212,13 @@ async def analyze_email_endpoint(
         record = _persist_analysis(
             db,
             analysis_type="email",
-            input_data=content,
+            input_data=sanitized_content,
             url=None,
             ai_result=ai_result,
             vt_positives=None,
         )
+
+        request.state.audit_verdict = record.verdict
 
         # La estructura de respuesta para email omite url y virustotal_detections
         return {
