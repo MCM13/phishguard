@@ -39,6 +39,6 @@ def get_db():
 def init_db() -> None:
     """Crea todas las tablas declaradas en los modelos si no existen."""
     # Importamos los modelos para que queden registrados en Base.metadata
-    from app.models import analysis  # noqa: F401
+    from app.models import analysis, anthropic_usage  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

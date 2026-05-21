@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional
 
 from anthropic import Anthropic
 
+from app.services.anthropic_rate_limit import check_and_consume_quota
+
 logger = logging.getLogger(__name__)
 
 # Modelo de Claude usado para el análisis.
@@ -243,6 +245,11 @@ async def analyze_with_claude(
     api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         return _fallback_response(features, "ANTHROPIC_API_KEY no configurada")
+
+    # Comprobar cuota horaria/diaria antes de gastar créditos en Anthropic
+    allowed, quota_reason = check_and_consume_quota()
+    if not allowed:
+        return _fallback_response(features, quota_reason or "cuota de Anthropic agotada")
 
     prompt = _build_prompt(features, vt_result)
 

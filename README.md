@@ -76,6 +76,8 @@ Variables soportadas:
 | ---------------------- | ----------- | ------------------------------------------------------------------------ |
 | `ANTHROPIC_API_KEY`    | Sí          | API key de Anthropic Claude.                                             |
 | `CLAUDE_MODEL`         | No          | ID del modelo de Claude a usar. Por defecto `claude-sonnet-4-6`. Ver [Modelos disponibles](#modelos-de-claude-disponibles). |
+| `ANTHROPIC_MAX_PER_HOUR` | No        | Máximo de llamadas a Claude por hora (defecto `15`). `0` = sin límite horario. |
+| `ANTHROPIC_MAX_PER_DAY`  | No        | Máximo de llamadas a Claude por día UTC (defecto `50`). `0` = sin límite diario. |
 | `VIRUSTOTAL_API_KEY`   | No          | Si falta, se omite VirusTotal sin romper el análisis.                    |
 | `URLSCAN_API_KEY`      | No          | Si falta, se omite URLScan sin romper el análisis.                       |
 | `VITE_API_URL`         | No          | URL pública del backend visible desde el navegador. Por defecto `http://localhost:8000`. |
@@ -83,6 +85,8 @@ Variables soportadas:
 | `ALLOWED_ORIGINS`      | No          | Lista CSV de orígenes permitidos por CORS (`*` por defecto).             |
 
 > **Importante:** si VirusTotal o URLScan no están configurados o fallan, el análisis continúa igualmente usando únicamente Claude + las features locales.
+
+> **Cuota Anthropic:** al superar los límites horario/diario, PhishGuard **no llama a Claude** y devuelve un veredicto heurístico local (sin gastar créditos). El consumo se muestra en `GET /api/stats` bajo `anthropic_quota`.
 
 ### Modelos de Claude disponibles
 
