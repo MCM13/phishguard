@@ -27,7 +27,6 @@ from app.middleware.request_guards import (
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.routers import analyze, history
 from app.services.admin_auth import warn_if_weak_configuration
-from app.services.client_ip import log_trusted_proxy_hops_at_startup
 from app.services.rate_limit import limiter
 
 # Configuración de logging para producción
@@ -122,8 +121,6 @@ def on_startup() -> None:
     """Inicializa la base de datos al arrancar la aplicación."""
     init_db()
     warn_if_weak_configuration()
-    # TEMPORAL: diagnóstico de proxies en Render; quitar con el log de client_ip.
-    log_trusted_proxy_hops_at_startup()
 
 
 @app.get("/", tags=["health"])
