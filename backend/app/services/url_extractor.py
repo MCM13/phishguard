@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from app.services.domain_utils import EXTRACT
+from app.services.domain_utils import EXTRACT, split_host
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +95,17 @@ def extract_url_features(raw_url: str) -> Dict[str, Any]:
     url = _normalize_url(raw_url)
     parsed = urlparse(url)
     extracted = EXTRACT(url)
+    hostname = (parsed.hostname or "").lower().rstrip(".")
 
-    # Subdominios: tldextract devuelve algo como "www.mail" -> 2 subdominios
-    subdomain_str = extracted.subdomain or ""
+    if extracted.suffix or _is_ip_address(hostname):
+        registered, tld = extracted.domain, (extracted.suffix or "").lower()
+        subdomain_str = extracted.subdomain or ""
+    else:
+        # TLD fuera de la Public Suffix List: tldextract no lo separa
+        registered, tld = split_host(hostname)
+        subdomain_str = hostname[: -len(f"{registered}.{tld}")].rstrip(".") if tld else ""
+
+    # Subdominios: "www.mail" -> 2 subdominios
     subdomain_count = len([s for s in subdomain_str.split(".") if s]) if subdomain_str else 0
 
     # Coincidencias de palabras clave sospechosas (comparación case-insensitive)
@@ -107,10 +115,9 @@ def extract_url_features(raw_url: str) -> Dict[str, Any]:
     # Caracteres sospechosos detectados
     char_hits = [ch for ch in SUSPICIOUS_CHARS if ch in url]
 
-    tld = (extracted.suffix or "").lower()
     unusual_tld = bool(tld) and tld not in COMMON_TLDS
 
-    full_domain = ".".join(part for part in [extracted.domain, extracted.suffix] if part)
+    full_domain = ".".join(part for part in [registered, tld] if part)
     domain_age_days = _get_domain_age_days(full_domain) if full_domain else None
 
     features: Dict[str, Any] = {

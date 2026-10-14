@@ -182,7 +182,7 @@ async def analyze_url_endpoint(
         logger.exception("Error analizando URL: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error interno analizando la URL: {exc.__class__.__name__}",
+            detail="Error interno analizando la URL.",
         )
 
 
@@ -252,5 +252,5 @@ async def analyze_email_endpoint(
         logger.exception("Error analizando email: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error interno analizando el email: {exc.__class__.__name__}",
+            detail="Error interno analizando el email.",
         )
