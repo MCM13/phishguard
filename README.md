@@ -92,7 +92,7 @@ curl http://localhost:8000/
 |----------|-----------|
 | Frontend | http://localhost:3000 |
 | Backend (API) | http://localhost:8000 |
-| Documentación interactiva de la API | http://localhost:8000/docs |
+| Documentación interactiva de la API | http://localhost:8000/docs (no disponible con `ENVIRONMENT=production`) |
 
 - Ver los logs (incluido el log de auditoría en JSON): `docker compose logs -f backend`
 - Detener: `docker compose down`. La base de datos se guarda en el volumen `phishguard-data` y se conserva.
@@ -115,6 +115,7 @@ Copia `.env.example` a `.env` en la raíz del proyecto. **Todas las claves y sec
 
 | Variable | ¿Obligatoria? | Por defecto | Uso |
 |----------|:-------------:|-------------|-----|
+| `ENVIRONMENT` | Sí en producción | vacío (desarrollo) | Con `production` se desactivan `/docs`, `/redoc` y `/openapi.json` (responden 404). |
 | `ADMIN_TOKEN` | Para ver el historial | vacío | Token para `GET /api/history` (`Authorization: Bearer …`). Vacío = historial cerrado para todos. Usa 24 caracteres aleatorios o más. |
 | `ANTHROPIC_API_KEY` | No* | vacío | Clave de la API de Anthropic (Claude). |
 | `CLAUDE_MODEL` | No | `claude-sonnet-4-5-20250929` | Modelo de Claude (`.env.example` propone `claude-sonnet-4-6`). |
@@ -236,7 +237,7 @@ phishguard/
 ### URL de despliegue
 
 - Aplicación: **https://phishguard.cmmario.com**
-- API: https://phishguard-backend-qszu.onrender.com (salud en `/`, documentación en `/docs`)
+- API: https://phishguard-backend-qszu.onrender.com (salud en `/`; `/docs` está desactivado en producción)
 
 PhishGuard está pensado para un despliegue **desacoplado**:
 
@@ -247,7 +248,7 @@ PhishGuard está pensado para un despliegue **desacoplado**:
 
 Tras cada cambio en `VITE_API_URL` hay que **volver a desplegar el frontend** (se inyecta en tiempo de build). Mantén `ALLOWED_ORIGINS` alineado con el dominio real de tu aplicación.
 
-En Render hay que definir en el panel, como mínimo, `ADMIN_TOKEN`, `ALLOWED_ORIGINS`/`FRONTEND_URL` y `TRUSTED_PROXY_HOPS=1`; las claves de API son opcionales. Consulta `render.yaml` y `.env.example` como referencia; los valores concretos de dominio y claves se configuran solo en los paneles de cada proveedor.
+En Render hay que definir en el panel, como mínimo, `ADMIN_TOKEN`, `ALLOWED_ORIGINS`/`FRONTEND_URL`, `TRUSTED_PROXY_HOPS=1` y `ENVIRONMENT=production`; las claves de API son opcionales. Consulta `render.yaml` y `.env.example` como referencia; los valores concretos de dominio y claves se configuran solo en los paneles de cada proveedor.
 
 ---
 

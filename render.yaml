@@ -12,6 +12,9 @@ services:
     plan: free
     healthCheckPath: /
     envVars:
+      # Desactiva /docs, /redoc y /openapi.json
+      - key: ENVIRONMENT
+        value: production
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: CLAUDE_MODEL

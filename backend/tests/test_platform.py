@@ -1,8 +1,12 @@
-"""RF-15 (API documentada), RNF-05 (no root), RNF-06 (auditoría), RNF-12 (configuración)."""
+"""RF-15 (API documentada), RNF-05 (no root), RNF-06 (auditoría), RNF-09 (sin /docs en producción), RNF-12 (configuración)."""
 
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
 from app.cors_config import get_allowed_origins
@@ -17,6 +21,25 @@ def test_rf15_api_documentada(client):
     assert spec.status_code == 200
     paths = spec.json()["paths"]
     assert {"/api/analyze/url", "/api/analyze/email", "/api/history", "/api/stats"} <= set(paths)
+
+
+def test_docs_desactivados_en_produccion():
+    """La app lee ENVIRONMENT al importarse, así que se comprueba en un proceso aparte."""
+    script = textwrap.dedent("""
+        from fastapi.testclient import TestClient
+        from app.main import app
+        client = TestClient(app)
+        codes = [client.get(p).status_code for p in ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect")]
+        print(codes, client.get("/").status_code)
+    """)
+    for value, expected in (("production", "[404, 404, 404, 404] 200"), ("development", "[200, 200, 200, 200] 200")):
+        env = {**os.environ, "ENVIRONMENT": value, "PYTHONPATH": str(BACKEND_DIR)}
+        result = subprocess.run(
+            [sys.executable, "-c", script], env=env, cwd=BACKEND_DIR,
+            capture_output=True, text=True, timeout=60,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip().splitlines()[-1] == expected, value
 
 
 def test_health(client):

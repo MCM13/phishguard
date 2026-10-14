@@ -35,6 +35,18 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
+def is_production() -> bool:
+    return os.getenv("ENVIRONMENT", "").strip().lower() == "production"
+
+
+# En producción no se publica la documentación interactiva ni el esquema
+# OpenAPI: describen la superficie de ataque y no los necesita el frontend.
+_docs_urls = (
+    {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    if is_production()
+    else {}
+)
+
 app = FastAPI(
     title="PhishGuard API",
     description=(
@@ -42,6 +54,7 @@ app = FastAPI(
         "sospechosos y devuelve un score, un veredicto y una explicación."
     ),
     version="1.0.0",
+    **_docs_urls,
 )
 
 # CORS: en producción (Render, dominio propio) debe coincidir el origen del
