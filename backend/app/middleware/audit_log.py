@@ -3,7 +3,8 @@ Middleware de auditoría: registra una entrada JSON por cada petición HTTP.
 
 Datos registrados:
   ts_utc       - Marca temporal ISO-8601 UTC.
-  ip           - IP del cliente (respetando X-Forwarded-For).
+  ip           - IP del cliente (ver app.services.client_ip: sólo se confía
+                 en X-Forwarded-For añadido por proxies de confianza).
   method       - Verbo HTTP.
   path         - Ruta solicitada (sin query string).
   status       - Código HTTP devuelto.
@@ -32,6 +33,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.services.client_ip import get_client_ip
+
 # Canal dedicado para auditoría — no propaga al root logger para mantener
 # los registros separados del logging normal de la aplicación.
 _audit_logger = logging.getLogger("phishguard.audit")
@@ -41,18 +44,6 @@ if not _audit_logger.handlers:
     handler.setFormatter(logging.Formatter("%(message)s"))
     _audit_logger.addHandler(handler)
     _audit_logger.setLevel(logging.INFO)
-
-
-def _client_ip(request: Request) -> str:
-    """Resuelve la IP real del cliente, respetando X-Forwarded-For."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        first = forwarded.split(",", 1)[0].strip()
-        if first:
-            return first
-    if request.client:
-        return request.client.host or "unknown"
-    return "unknown"
 
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
@@ -71,7 +62,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
             entry: Dict[str, Any] = {
                 "ts_utc": datetime.now(timezone.utc).isoformat(),
-                "ip": _client_ip(request),
+                "ip": get_client_ip(request),
                 "method": request.method,
                 "path": request.url.path,
                 "status": status_code,

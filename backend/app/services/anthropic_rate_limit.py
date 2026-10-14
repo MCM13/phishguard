@@ -3,19 +3,21 @@ Control de cuota de llamadas a la API de Anthropic.
 
 Evita agotar los créditos limitando cuántas peticiones a Claude se permiten
 por hora y por día. Los contadores se persisten en SQLite para que sobrevivan
-reinicios del contenedor.
+reinicios del proceso (no del disco efímero de Render).
 
-Variables de entorno:
-  ANTHROPIC_MAX_PER_HOUR  — Máximo por hora (0 = sin límite horario)
-  ANTHROPIC_MAX_PER_DAY   — Máximo por día (0 = sin límite diario)
+Variables de entorno (se leen en cada comprobación, no al importar):
+  ANTHROPIC_MAX_PER_HOUR  — Máximo por hora (0 = sin límite horario, por defecto 10)
+  ANTHROPIC_MAX_PER_DAY   — Máximo por día UTC (0 = sin límite diario, por defecto 20)
 
 Si ambos son 0, no hay restricción (no recomendado en producción).
+Cuando se agota la cuota, el análisis continúa en modo heurístico sin IA.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import threading
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
 
@@ -25,6 +27,14 @@ from app.database import SessionLocal
 from app.models.anthropic_usage import AnthropicUsageLog
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MAX_PER_HOUR = 10
+DEFAULT_MAX_PER_DAY = 20
+
+# Serializa "comprobar + registrar" para que peticiones concurrentes en el
+# mismo proceso no superen la cuota. Con varios workers/procesos haría falta
+# un bloqueo en la base de datos.
+_quota_lock = threading.Lock()
 
 
 def _parse_limit(name: str, default: int) -> int:
@@ -38,9 +48,12 @@ def _parse_limit(name: str, default: int) -> int:
     return max(0, value)
 
 
-# Límites por defecto conservadores para no vaciar créditos en producción/demo
-MAX_PER_HOUR = _parse_limit("ANTHROPIC_MAX_PER_HOUR", default=10)
-MAX_PER_DAY = _parse_limit("ANTHROPIC_MAX_PER_DAY", default=20)
+def max_per_hour() -> int:
+    return _parse_limit("ANTHROPIC_MAX_PER_HOUR", DEFAULT_MAX_PER_HOUR)
+
+
+def max_per_day() -> int:
+    return _parse_limit("ANTHROPIC_MAX_PER_DAY", DEFAULT_MAX_PER_DAY)
 
 
 def _count_since(since: datetime) -> int:
@@ -57,65 +70,55 @@ def _count_since(since: datetime) -> int:
         db.close()
 
 
-def get_usage_status() -> Dict[str, Any]:
-    """
-    Devuelve el estado actual de consumo para exponer en /api/stats.
-
-    Incluye límites configurados, uso actual y peticiones restantes.
-    """
-    used_hour, used_day = _get_counts()
-
-    def _window(used: int, limit: int) -> Dict[str, Any]:
-        if limit <= 0:
-            return {
-                "limit": None,
-                "used": used,
-                "remaining": None,
-                "unlimited": True,
-            }
-        remaining = max(0, limit - used)
-        return {
-            "limit": limit,
-            "used": used,
-            "remaining": remaining,
-            "unlimited": False,
-        }
-
-    hour_info = _window(used_hour, MAX_PER_HOUR)
-    day_info = _window(used_day, MAX_PER_DAY)
-
-    # Hay cuota si al menos una ventana está ilimitada o tiene remaining > 0
-    can_call = True
-    block_reason: Optional[str] = None
-
-    if MAX_PER_HOUR > 0 and hour_info["remaining"] == 0:
-        can_call = False
-        block_reason = (
-            f"Límite horario alcanzado ({used_hour}/{MAX_PER_HOUR} llamadas a Claude). "
-            "Inténtalo de nuevo más tarde."
-        )
-    if MAX_PER_DAY > 0 and day_info["remaining"] == 0:
-        can_call = False
-        block_reason = (
-            f"Límite diario alcanzado ({used_day}/{MAX_PER_DAY} llamadas a Claude). "
-            "Se reinicia a medianoche UTC."
-        )
-
-    return {
-        "enabled": MAX_PER_HOUR > 0 or MAX_PER_DAY > 0,
-        "can_call_claude": can_call,
-        "block_reason": block_reason,
-        "hourly": hour_info,
-        "daily": day_info,
-    }
-
-
 def _get_counts() -> Tuple[int, int]:
     """Devuelve (usadas última hora, usadas hoy UTC)."""
     now = datetime.utcnow()
     hour_start = now - timedelta(hours=1)
     day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     return _count_since(hour_start), _count_since(day_start)
+
+
+def _block_reason(used_hour: int, used_day: int, limit_hour: int, limit_day: int) -> Optional[str]:
+    if limit_day > 0 and used_day >= limit_day:
+        return (
+            f"Límite diario alcanzado ({used_day}/{limit_day} llamadas a Claude). "
+            "Se reinicia a medianoche UTC."
+        )
+    if limit_hour > 0 and used_hour >= limit_hour:
+        return (
+            f"Límite horario alcanzado ({used_hour}/{limit_hour} llamadas a Claude). "
+            "Inténtalo de nuevo más tarde."
+        )
+    return None
+
+
+def get_usage_status() -> Dict[str, Any]:
+    """
+    Devuelve el estado actual de consumo para exponer en /api/stats.
+
+    Incluye límites configurados, uso actual y peticiones restantes.
+    """
+    limit_hour, limit_day = max_per_hour(), max_per_day()
+    used_hour, used_day = _get_counts()
+
+    def _window(used: int, limit: int) -> Dict[str, Any]:
+        if limit <= 0:
+            return {"limit": None, "used": used, "remaining": None, "unlimited": True}
+        return {
+            "limit": limit,
+            "used": used,
+            "remaining": max(0, limit - used),
+            "unlimited": False,
+        }
+
+    reason = _block_reason(used_hour, used_day, limit_hour, limit_day)
+    return {
+        "enabled": limit_hour > 0 or limit_day > 0,
+        "can_call_claude": reason is None,
+        "block_reason": reason,
+        "hourly": _window(used_hour, limit_hour),
+        "daily": _window(used_day, limit_day),
+    }
 
 
 def check_and_consume_quota() -> Tuple[bool, Optional[str]]:
@@ -126,29 +129,18 @@ def check_and_consume_quota() -> Tuple[bool, Optional[str]]:
         (True, None) si se puede llamar a Claude.
         (False, mensaje) si se superó el límite horario o diario.
     """
+    limit_hour, limit_day = max_per_hour(), max_per_day()
     # Sin límites configurados: sin restricción ni registro en BD
-    if MAX_PER_HOUR <= 0 and MAX_PER_DAY <= 0:
+    if limit_hour <= 0 and limit_day <= 0:
         return True, None
 
-    used_hour, used_day = _get_counts()
-
-    if MAX_PER_HOUR > 0 and used_hour >= MAX_PER_HOUR:
-        reason = (
-            f"Límite horario alcanzado ({used_hour}/{MAX_PER_HOUR} llamadas a Claude). "
-            "Inténtalo de nuevo más tarde."
-        )
-        logger.warning("Cuota Anthropic agotada: %s", reason)
-        return False, reason
-
-    if MAX_PER_DAY > 0 and used_day >= MAX_PER_DAY:
-        reason = (
-            f"Límite diario alcanzado ({used_day}/{MAX_PER_DAY} llamadas a Claude). "
-            "Se reinicia a medianoche UTC."
-        )
-        logger.warning("Cuota Anthropic agotada: %s", reason)
-        return False, reason
-
-    _record_call()
+    with _quota_lock:
+        used_hour, used_day = _get_counts()
+        reason = _block_reason(used_hour, used_day, limit_hour, limit_day)
+        if reason:
+            logger.warning("Cuota Anthropic agotada: %s", reason)
+            return False, reason
+        _record_call()
     return True, None
 
 

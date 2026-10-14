@@ -18,7 +18,7 @@ from app.models.analysis import Analysis
 from app.services.admin_auth import require_admin
 from app.services.anthropic_rate_limit import get_usage_status
 from app.services.claude_analyzer import ALL_VERDICTS
-from app.services.rate_limit import limiter
+from app.services.rate_limit import history_limit, limiter, stats_limit
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api", tags=["history"])
 
 
 @router.get("/history")
-@limiter.limit("30/minute")
+@limiter.limit(history_limit)
 def get_history(
     request: Request,
     page: int = Query(1, ge=1, description="Número de página (1-indexada)"),
@@ -87,7 +87,8 @@ def get_history(
 
 
 @router.get("/stats")
-def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
+@limiter.limit(stats_limit)
+def get_stats(request: Request, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Devuelve estadísticas globales:
       - total_analyzed: total de análisis realizados

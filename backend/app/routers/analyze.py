@@ -34,7 +34,7 @@ from app.services import (
     urlscan,
     virustotal,
 )
-from app.services.rate_limit import limiter
+from app.services.rate_limit import analyze_limit, limiter
 from app.services.text_sanitizer import safe_string, strip_html
 from app.services.url_validator import UnsafeURLError, validate_public_url
 
@@ -96,7 +96,7 @@ def _persist_analysis(
 
 
 @router.post("/url")
-@limiter.limit("10/minute")
+@limiter.limit(analyze_limit)
 async def analyze_url_endpoint(
     request: Request,
     # Annotated[Model, Body()] es obligatorio cuando se combina con
@@ -187,7 +187,7 @@ async def analyze_url_endpoint(
 
 
 @router.post("/email")
-@limiter.limit("10/minute")
+@limiter.limit(analyze_limit)
 async def analyze_email_endpoint(
     request: Request,
     payload: Annotated[EmailAnalysisRequest, Body()],

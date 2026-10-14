@@ -20,6 +20,12 @@ services:
         value: "10"
       - key: ANTHROPIC_MAX_PER_DAY
         value: "20"
+      # El balanceador de Render añade la IP real del cliente como última
+      # entrada de X-Forwarded-For; las anteriores las controla el cliente.
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"
+      - key: RATE_LIMIT_ANALYZE
+        value: 10/minute
       - key: VIRUSTOTAL_API_KEY
         sync: false
       - key: URLSCAN_API_KEY

@@ -2,46 +2,45 @@
 Configuración del rate limiter basado en slowapi.
 
 Aplica límites por IP a los endpoints sensibles para prevenir abuso,
-gasto excesivo de créditos de la API de Anthropic y ataques de fuerza bruta.
+gasto excesivo de créditos de la API de Anthropic y ataques de fuerza bruta
+contra el token de administrador.
 
-Cuando la aplicación corre detrás de un proxy/CDN (Render, Cloudflare,
-Nginx...), la IP real del cliente viene en la cabecera `X-Forwarded-For`.
-La función `client_ip_key` lee esa cabecera, tomando la primera IP de la
-cadena (la del cliente original), y si no existe cae a la IP del socket.
+La IP del cliente la resuelve `app.services.client_ip.get_client_ip`, que
+sólo confía en X-Forwarded-For cuando hay proxies de confianza configurados
+y toma la entrada que añadió el proxy, no la que envía el cliente.
+
+Los límites se leen en cada petición de estas variables de entorno
+(formato de slowapi/limits, p. ej. "10/minute" o "100/hour"):
+  RATE_LIMIT_ANALYZE  — POST /api/analyze/*   (por defecto 10/minute)
+  RATE_LIMIT_HISTORY  — GET  /api/history     (por defecto 30/minute)
+  RATE_LIMIT_STATS    — GET  /api/stats       (por defecto 60/minute)
 """
 
 from __future__ import annotations
 
-from typing import Optional
+import os
 
 from fastapi import Request
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 
-
-def _first_forwarded_ip(header_value: str) -> Optional[str]:
-    """Devuelve la primera IP no vacía de un X-Forwarded-For (CSV)."""
-    for part in header_value.split(","):
-        ip = part.strip()
-        if ip:
-            return ip
-    return None
+from app.services.client_ip import get_client_ip
 
 
 def client_ip_key(request: Request) -> str:
-    """
-    Identifica al cliente por IP, priorizando X-Forwarded-For si existe.
+    """Clave del rate limit: la IP real del cliente."""
+    return get_client_ip(request)
 
-    En despliegues directos (sin proxy) usa la IP del socket TCP.
-    Si todo lo anterior falla, devuelve un marcador único para evitar
-    KeyError de slowapi.
-    """
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        ip = _first_forwarded_ip(forwarded)
-        if ip:
-            return ip
-    return get_remote_address(request) or "unknown"
+
+def analyze_limit() -> str:
+    return os.getenv("RATE_LIMIT_ANALYZE", "10/minute")
+
+
+def history_limit() -> str:
+    return os.getenv("RATE_LIMIT_HISTORY", "30/minute")
+
+
+def stats_limit() -> str:
+    return os.getenv("RATE_LIMIT_STATS", "60/minute")
 
 
 # Único Limiter global que se importa desde main.py y los routers.

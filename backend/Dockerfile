@@ -34,5 +34,6 @@ USER appuser
 
 EXPOSE 8000
 
-# Lanzamos Uvicorn como servidor ASGI
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Lanzamos Uvicorn como servidor ASGI. --no-proxy-headers: X-Forwarded-For
+# sólo lo interpreta app/services/client_ip.py según TRUSTED_PROXY_HOPS.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
