@@ -95,3 +95,31 @@ def test_rf06_urlscan_detecta_informe_malicioso(monkeypatch, mock_http):
     assert result["available"] is True
     assert result["malicious"] is True
     assert mock_http.requests[0].url.params["q"] == "domain:login.example.test"
+
+
+def test_urlscan_no_envia_escaneo_ni_expone_path_o_query(monkeypatch, mock_http):
+    """
+    Minimización: no se hace POST /scan/ (que indexaría la URL) y la búsqueda
+    solo lleva el hostname, nunca tokens ni emails de la query.
+    """
+    monkeypatch.setenv("URLSCAN_API_KEY", "clave-ficticia")
+    mock_http(lambda request: httpx.Response(200, json={"total": 0, "results": []}))
+
+    dirty = (
+        "https://reset.example.test/recover"
+        "?token=secreto-de-prueba&email=victima%40example.com"
+    )
+    asyncio.run(urlscan.analyze_url(dirty))
+
+    assert urlscan.REQUIRED_SCAN_VISIBILITY == "unlisted"
+    assert len(mock_http.requests) == 1
+    req = mock_http.requests[0]
+    assert req.method == "GET"
+    assert "/scan" not in str(req.url)
+    assert str(req.url).startswith("https://urlscan.io/api/v1/search/")
+    assert req.url.params["q"] == "domain:reset.example.test"
+    sent = str(req.url)
+    assert "token" not in sent
+    assert "secreto" not in sent
+    assert "victima" not in sent
+    assert "email" not in sent
