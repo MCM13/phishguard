@@ -1,7 +1,14 @@
-# Blueprint de referencia para desplegar PhishGuard en Render.
+# Blueprint de REFERENCIA para desplegar PhishGuard en Render.
 # https://render.com/docs/blueprint-spec
 #
-# Ajusta los nombres de servicio y URLs a tu cuenta antes de aplicar.
+# Este fichero NO se aplica solo: solo afecta al servicio si lo creas o
+# sincronizas con "Apply Blueprint" / Infrastructure-as-Code. Si el backend
+# se creó a mano en el panel, las variables de aquí (RATE_LIMIT_*,
+# ANTHROPIC_MAX_*, TRUSTED_PROXY_HOPS, etc.) NO existen en el entorno
+# hasta que las añadas tú en Environment; mientras tanto mandan los
+# valores por defecto del código (.env.example / rate_limit.py / …).
+#
+# Ajusta nombres de servicio y URLs antes de aplicar el blueprint.
 
 services:
   - type: web

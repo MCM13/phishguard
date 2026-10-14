@@ -225,7 +225,7 @@ phishguard/
 ├── scripts/              # Utilidades de desarrollo y pruebas
 ├── docs/                 # Auditoría y evidencias (audits de dependencias, pytest)
 ├── docker-compose.yml    # Orquestación local
-├── render.yaml           # Referencia de despliegue backend
+├── render.yaml           # Blueprint de referencia (no se aplica solo; ver sección Despliegue)
 ├── .env.example          # Plantilla de variables (sin secretos)
 └── README.md
 ```
@@ -248,7 +248,9 @@ PhishGuard está pensado para un despliegue **desacoplado**:
 
 Tras cada cambio en `VITE_API_URL` hay que **volver a desplegar el frontend** (se inyecta en tiempo de build). Mantén `ALLOWED_ORIGINS` alineado con el dominio real de tu aplicación.
 
-En Render hay que definir en el panel, como mínimo, `ADMIN_TOKEN`, `ALLOWED_ORIGINS`/`FRONTEND_URL`, `TRUSTED_PROXY_HOPS=1` y `ENVIRONMENT=production`; las claves de API son opcionales. Consulta `render.yaml` y `.env.example` como referencia; los valores concretos de dominio y claves se configuran solo en los paneles de cada proveedor.
+En Render hay que definir en el panel, como mínimo, `ADMIN_TOKEN`, `ALLOWED_ORIGINS`/`FRONTEND_URL`, `TRUSTED_PROXY_HOPS=1` y `ENVIRONMENT=production`; las claves de API son opcionales.
+
+**Importante:** `render.yaml` es solo un blueprint de referencia. Si el servicio se creó a mano en el panel (como el de producción actual), ese fichero **no** inyecta variables: no aparecerán `RATE_LIMIT_*` ni `ANTHROPIC_MAX_PER_*` en Environment a menos que las añadas tú. Mientras no estén, mandan los **valores por defecto del código** (`10/minute` en análisis, `30/minute` en historial, `10` llamadas/hora y `20`/día a Claude, etc.). `render.yaml` y `.env.example` sirven de checklist; los valores reales de dominio y claves solo viven en los paneles.
 
 ---
 

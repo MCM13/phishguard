@@ -371,7 +371,8 @@ Todas en la rama `main`, en local: **no se ha hecho push ni se han creado tags**
 | 15 | `ca07da2` | docs: H-12 en la auditoria y evidencias de pytest | Este registro y `pytest.txt` (151 passed) |
 | 16 | `7f48582` | fix(rate-limit): contar tambien los 422 de analisis invalidos | Los 422 de `/api/analyze` ya cuentan para el límite |
 | 17 | `b905cf9` | chore(diag): log temporal de cabeceras de proxy sin exponer IPs | Diagnóstico de `get_client_ip` en Render |
-| 18 | commit URLScan minimización | fix(urlscan): no reenviar path/query y fijar visibility unlisted | Control de minimización de RF-06 |
+| 18 | `b4a8715` | fix(urlscan): no reenviar path/query y fijar visibility unlisted | Control de minimización de RF-06 |
+| 19 | `3818268` | docs: aclarar que render.yaml no aplica al servicio creado a mano | README, `render.yaml` y esta nota |
 
 **Evidencias:**
 
@@ -411,5 +412,5 @@ Las APIs externas, WHOIS y DNS se simulan solo en `backend/tests/conftest.py`, y
 | H-05 residual | Las heurísticas son el suelo, pero no lo cubren todo: un email que engañe a la IA sin señales heurísticas puede salir `SOSPECHOSO` o `LEGÍTIMO` | Mostrarlo en el vídeo como límite conocido; revisión humana |
 | Hilos de WHOIS | Un 504 no cancela el hilo, y el código no fija un timeout para la consulta WHOIS | Aceptado: un único worker y un rate limit de 10/min por IP acotan el número de hilos. Si hace falta, se puede añadir un timeout a la consulta. |
 | Tag `v1.0-practica3` y push | Se pidió expresamente no hacerlos | Tarea 22, sobre el commit final |
-| Configuración de Render | `ADMIN_TOKEN`, `TRUSTED_PROXY_HOPS=1` y `ENVIRONMENT=production` hay que definirlos en el panel si el servicio no se creó desde `render.yaml`. Sin `TRUSTED_PROXY_HOPS`, todo el tráfico compartiría la IP del balanceador y el rate limit se aplicaría a todos a la vez. | Configurarlo antes de desplegar estos commits |
+| Configuración de Render | El backend de producción **no** se creó desde `render.yaml`: ese blueprint no aplica y en el panel no hay `RATE_LIMIT_*` ni `ANTHROPIC_MAX_*` a menos que se añadan a mano; mandan los defaults del código. Sí hay que tener en el panel `ADMIN_TOKEN`, `TRUSTED_PROXY_HOPS=1` y `ENVIRONMENT=production`. Con `TRUSTED_PROXY_HOPS=1` mal resuelto, la IP del rate limit puede ser la del balanceador interno (cambia entre peticiones) y el 429 no salta. | Revisar `get_client_ip` tras el diagnóstico; opcionalmente añadir `RATE_LIMIT_*` al panel si se quieren valores distintos del código |
 | `.env` local | Hay que añadir `ADMIN_TOKEN` a mano. Estas correcciones no lo han modificado. | Generar el token como indica el README |
