@@ -126,8 +126,9 @@ Copia `.env.example` a `.env` en la raíz del proyecto. **Todas las claves y sec
 | `RATE_LIMIT_ANALYZE` | No | `10/minute` | Límite por IP de `POST /api/analyze/*`. |
 | `RATE_LIMIT_HISTORY` | No | `30/minute` | Límite por IP de `GET /api/history` (también frena la fuerza bruta del token). |
 | `RATE_LIMIT_STATS` | No | `60/minute` | Límite por IP de `GET /api/stats`. |
-| `TRUSTED_PROXY_HOPS` | No | `0` | Proxies de confianza que añaden `X-Forwarded-For`. `0` = se usa la IP de la conexión (local). `1` en Render. |
+| `TRUSTED_PROXY_HOPS` | No | `0` | Proxies de confianza que añaden `X-Forwarded-For`. `0` = IP del socket (local). Respaldo si no se usa Cloudflare. |
 | `TRUSTED_PROXY_CIDRS` | No | vacío | Redes (CSV) desde las que se acepta `X-Forwarded-For`. |
+| `TRUST_CF_CONNECTING_IP` | No | `false` | Si `true`, la IP sale de `CF-Connecting-IP` (Cloudflare). **Solo con Cloudflare delante**; sin él el cliente podría falsificarla. |
 | `ALLOWED_ORIGINS` | Sí en producción | `*` en código, `http://localhost:3000` en Compose | Orígenes permitidos para CORS (lista separada por comas). |
 | `FRONTEND_URL` | No | vacío | URL pública del frontend; se añade a CORS. |
 | `DATABASE_URL` | No | `sqlite:////data/phishguard.db` en Compose | Cadena de conexión SQLite. |
@@ -138,7 +139,7 @@ Copia `.env.example` a `.env` en la raíz del proyecto. **Todas las claves y sec
 
 **Formato de los límites:** `N/second`, `N/minute`, `N/hour` o `N/day`. Los límites de IA y de rate limit se leen en cada petición.
 
-**Detrás de un proxy:** pon `TRUSTED_PROXY_HOPS` al número de proxies que hay delante del backend. Nunca uses un valor mayor: el cliente controla las entradas de la izquierda de `X-Forwarded-For` y podría saltarse el rate limit.
+**Detrás de un proxy:** si el tráfico pasa por **Cloudflare** antes del backend, activa `TRUST_CF_CONNECTING_IP=true` (Cloudflare fija `CF-Connecting-IP` y bloquea la cabecera si la envía el cliente). Sin Cloudflare, déjala en `false` y usa `TRUSTED_PROXY_HOPS` como respaldo; nunca pongas un hops mayor del real: el cliente controla las entradas de la izquierda de `X-Forwarded-For`.
 
 En **Render** y **Cloudflare Pages** define las mismas variables en el panel de Environment / Build variables de cada servicio.
 
@@ -248,7 +249,7 @@ PhishGuard está pensado para un despliegue **desacoplado**:
 
 Tras cada cambio en `VITE_API_URL` hay que **volver a desplegar el frontend** (se inyecta en tiempo de build). Mantén `ALLOWED_ORIGINS` alineado con el dominio real de tu aplicación.
 
-En Render hay que definir en el panel, como mínimo, `ADMIN_TOKEN`, `ALLOWED_ORIGINS`/`FRONTEND_URL`, `TRUSTED_PROXY_HOPS=1` y `ENVIRONMENT=production`; las claves de API son opcionales.
+En Render hay que definir en el panel, como mínimo, `ADMIN_TOKEN`, `ALLOWED_ORIGINS`/`FRONTEND_URL`, `ENVIRONMENT=production` y, si Cloudflare está delante (como con el frontend en Pages / proxy CF hacia el API), `TRUST_CF_CONNECTING_IP=true`; las claves de API son opcionales.
 
 **Importante:** `render.yaml` es solo un blueprint de referencia. Si el servicio se creó a mano en el panel (como el de producción actual), ese fichero **no** inyecta variables: no aparecerán `RATE_LIMIT_*` ni `ANTHROPIC_MAX_PER_*` en Environment a menos que las añadas tú. Mientras no estén, mandan los **valores por defecto del código** (`10/minute` en análisis, `30/minute` en historial, `10` llamadas/hora y `20`/día a Claude, etc.). `render.yaml` y `.env.example` sirven de checklist; los valores reales de dominio y claves solo viven en los paneles.
 

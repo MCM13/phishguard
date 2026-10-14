@@ -30,8 +30,10 @@ services:
         value: "10"
       - key: ANTHROPIC_MAX_PER_DAY
         value: "20"
-      # El balanceador de Render añade la IP real del cliente como última
-      # entrada de X-Forwarded-For; las anteriores las controla el cliente.
+      # Con Cloudflare delante del backend, preferir CF-Connecting-IP.
+      # Sin Cloudflare, dejar false y usar TRUSTED_PROXY_HOPS.
+      - key: TRUST_CF_CONNECTING_IP
+        value: "true"
       - key: TRUSTED_PROXY_HOPS
         value: "1"
       - key: RATE_LIMIT_ANALYZE

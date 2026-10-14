@@ -11,8 +11,14 @@ from app.services.client_ip import get_client_ip
 URL = "https://www.example.com/"
 
 
-def _request(peer: str, *xff: str) -> Request:
+def _request(
+    peer: str,
+    *xff: str,
+    cf_connecting_ip: str | None = None,
+) -> Request:
     headers = [(b"x-forwarded-for", value.encode()) for value in xff]
+    if cf_connecting_ip is not None:
+        headers.append((b"cf-connecting-ip", cf_connecting_ip.encode()))
     return Request({"type": "http", "headers": headers, "client": (peer, 12345)})
 
 
@@ -131,3 +137,48 @@ def test_get_client_ip_solo_acepta_cabecera_desde_redes_de_confianza(monkeypatch
 
     assert get_client_ip(_request("10.1.1.1", "203.0.113.7")) == "203.0.113.7"
     assert get_client_ip(_request("192.0.2.50", "203.0.113.7")) == "192.0.2.50"
+
+
+def test_get_client_ip_cf_connecting_ip_gana_sobre_xff_falso(monkeypatch):
+    monkeypatch.setenv("TRUST_CF_CONNECTING_IP", "true")
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "1")
+
+    ip = get_client_ip(
+        _request(
+            "10.1.1.1",
+            "203.0.113.99, 10.24.135.5",
+            cf_connecting_ip="91.117.233.113",
+        )
+    )
+    assert ip == "91.117.233.113"
+
+
+def test_get_client_ip_sin_trust_cf_ignora_cf_connecting_ip(monkeypatch):
+    monkeypatch.delenv("TRUST_CF_CONNECTING_IP", raising=False)
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "1")
+
+    ip = get_client_ip(
+        _request(
+            "10.1.1.1",
+            "198.51.100.9, 203.0.113.7",
+            cf_connecting_ip="91.117.233.113",
+        )
+    )
+    assert ip == "203.0.113.7"
+
+
+def test_get_client_ip_cf_invalida_usa_respaldo_xff(monkeypatch):
+    monkeypatch.setenv("TRUST_CF_CONNECTING_IP", "true")
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "1")
+
+    ip = get_client_ip(
+        _request(
+            "10.1.1.1",
+            "198.51.100.9, 203.0.113.7",
+            cf_connecting_ip="no-es-una-ip",
+        )
+    )
+    assert ip == "203.0.113.7"
+
+    ip_sin_cf = get_client_ip(_request("10.1.1.1", "198.51.100.9, 203.0.113.8"))
+    assert ip_sin_cf == "203.0.113.8"

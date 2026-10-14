@@ -7,15 +7,20 @@ izquierda de lo añadido por nuestros proxies lo controla el cliente y puede
 ser falso, así que nunca se usa el primer valor.
 
 Configuración:
-  TRUSTED_PROXY_HOPS  Número de proxies de confianza delante de la app que
-                      añaden su entrada a X-Forwarded-For. 0 (por defecto,
-                      local / Docker Compose) = se ignora la cabecera y se usa
-                      la IP del socket. En Render es 1: su balanceador añade la
-                      IP del cliente como último elemento.
-  TRUSTED_PROXY_CIDRS Opcional. Lista CSV de redes desde las que se aceptan
-                      esas cabeceras (p. ej. "10.0.0.0/8"). Si se define y la
-                      conexión llega desde fuera de ellas, se usa la IP del
-                      socket aunque TRUSTED_PROXY_HOPS sea > 0.
+  TRUST_CF_CONNECTING_IP  Si es true y llega CF-Connecting-IP con una IP
+                          válida, se usa esa cabecera (Cloudflare la fija y
+                          rechaza la que envía el cliente). Solo activar con
+                          Cloudflare delante; sin él, el cliente podría
+                          falsificarla. Por defecto false (local / Compose).
+  TRUSTED_PROXY_HOPS      Número de proxies de confianza delante de la app que
+                          añaden su entrada a X-Forwarded-For. 0 (por defecto,
+                          local / Docker Compose) = se ignora la cabecera y se
+                          usa la IP del socket. Se usa como respaldo si
+                          TRUST_CF_CONNECTING_IP no aporta una IP válida.
+  TRUSTED_PROXY_CIDRS     Opcional. Lista CSV de redes desde las que se aceptan
+                          esas cabeceras (p. ej. "10.0.0.0/8"). Si se define y
+                          la conexión llega desde fuera de ellas, se usa la IP
+                          del socket aunque TRUSTED_PROXY_HOPS sea > 0.
 
 uvicorn se arranca con --no-proxy-headers para que esta función sea la
 única que interpreta X-Forwarded-For.
@@ -32,8 +37,7 @@ from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 
-# TEMPORAL (diagnóstico de producción en Render): quitar tras identificar
-# qué cabecera trae la IP real del cliente. Nunca registra valores de IP.
+# TEMPORAL (diagnóstico de producción en Render): quitar en el siguiente commit.
 _PROXY_HEADER_NAMES = (
     "x-forwarded-for",
     "x-real-ip",
@@ -52,12 +56,22 @@ def _trusted_hops() -> int:
         return 0
 
 
+def _trust_cf_connecting_ip() -> bool:
+    return os.getenv("TRUST_CF_CONNECTING_IP", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def log_trusted_proxy_hops_at_startup() -> None:
     """TEMPORAL: deja constancia del hops efectivo al arrancar (sin secretos)."""
     logger.warning(
         "TEMP proxy_diag startup TRUSTED_PROXY_HOPS_effective=%d "
-        "TRUSTED_PROXY_CIDRS_configured=%s",
+        "TRUST_CF_CONNECTING_IP=%s TRUSTED_PROXY_CIDRS_configured=%s",
         _trusted_hops(),
+        _trust_cf_connecting_ip(),
         bool(os.getenv("TRUSTED_PROXY_CIDRS", "").strip()),
     )
 
@@ -89,6 +103,13 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
+def _is_private(host: str) -> bool:
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False
+
+
 def _log_proxy_diag(
     request: Request,
     *,
@@ -99,11 +120,9 @@ def _log_proxy_diag(
     branch: str,
 ) -> None:
     """TEMPORAL: metadatos de proxy; IPs solo con UA PhishGuard-Verify*."""
-    # Una sola línea por petición (rate limit y auditoría llaman ambos a get_client_ip).
     if getattr(request.state, "_proxy_diag_logged", False):
         return
     request.state._proxy_diag_logged = True
-    xff_entry_count = len(xff_entries)
     logger.warning(
         "TEMP proxy_diag hops=%d peer_is_loopback=%s peer_is_private=%s "
         "headers_present=%s xff_entry_count=%d branch=%s",
@@ -111,11 +130,9 @@ def _log_proxy_diag(
         _is_loopback(peer),
         _is_private(peer),
         present_headers,
-        xff_entry_count,
+        len(xff_entries),
         branch,
     )
-    # Solo en peticiones de verificación propias: volcar valores para ver
-    # qué entrada/cabecera es la IP pública real y cuáles son falsificables.
     ua = (request.headers.get("user-agent") or "").strip()
     if ua.startswith("PhishGuard-Verify"):
         logger.warning(
@@ -128,15 +145,32 @@ def _log_proxy_diag(
         )
 
 
-def _is_private(host: str) -> bool:
-    try:
-        return ipaddress.ip_address(host).is_private
-    except ValueError:
-        return False
+def _ip_from_xff(request: Request, peer: str) -> str:
+    """Respaldo: TRUSTED_PROXY_HOPS sobre X-Forwarded-For."""
+    hops = _trusted_hops()
+    if hops == 0:
+        return peer
+
+    networks = _trusted_networks()
+    if networks:
+        peer_ip = _valid_ip(peer)
+        if peer_ip is None or not any(ipaddress.ip_address(peer_ip) in net for net in networks):
+            return peer
+
+    entries = [
+        entry.strip()
+        for header in request.headers.getlist("x-forwarded-for")
+        for entry in header.split(",")
+        if entry.strip()
+    ]
+    if len(entries) < hops:
+        return peer
+
+    return _valid_ip(entries[-hops]) or peer
 
 
 def get_client_ip(request: Request) -> str:
-    """IP del cliente según la cadena de proxies de confianza configurada."""
+    """IP del cliente según Cloudflare (opcional) o la cadena de proxies."""
     peer = request.client.host if request.client and request.client.host else "unknown"
 
     present_headers = [name for name in _PROXY_HEADER_NAMES if request.headers.get(name)]
@@ -146,65 +180,31 @@ def get_client_ip(request: Request) -> str:
         for entry in header.split(",")
         if entry.strip()
     ]
-    xff_entry_count = len(xff_entries)
 
-    hops = _trusted_hops()
-    if hops == 0:
-        _log_proxy_diag(
-            request,
-            hops=hops,
-            peer=peer,
-            present_headers=present_headers,
-            xff_entries=xff_entries,
-            branch="hops0_use_peer",
-        )
-        return peer
-
-    networks = _trusted_networks()
-    if networks:
-        peer_ip = _valid_ip(peer)
-        if peer_ip is None or not any(ipaddress.ip_address(peer_ip) in net for net in networks):
+    if _trust_cf_connecting_ip():
+        cf_ip = _valid_ip(request.headers.get("cf-connecting-ip") or "")
+        if cf_ip:
             _log_proxy_diag(
                 request,
-                hops=hops,
+                hops=_trusted_hops(),
                 peer=peer,
                 present_headers=present_headers,
                 xff_entries=xff_entries,
-                branch="cidr_reject_use_peer",
+                branch="cf_connecting_ip",
             )
-            return peer
+            return cf_ip
 
-    if xff_entry_count < hops:
-        # Menos entradas que proxies: la petición no ha pasado por la cadena
-        # esperada, así que la cabecera no es fiable.
-        _log_proxy_diag(
-            request,
-            hops=hops,
-            peer=peer,
-            present_headers=present_headers,
-            xff_entries=xff_entries,
-            branch="xff_too_short_use_peer",
-        )
-        return peer
-
-    client = _valid_ip(xff_entries[-hops])
-    if client:
-        _log_proxy_diag(
-            request,
-            hops=hops,
-            peer=peer,
-            present_headers=present_headers,
-            xff_entries=xff_entries,
-            branch="xff_entries_minus_hops",
-        )
-        return client
-
+    # Respaldo XFF / peer (también si CF está activado pero la cabecera falta o es inválida).
+    client = _ip_from_xff(request, peer)
+    branch = "xff_or_peer_fallback"
+    if _trusted_hops() == 0:
+        branch = "hops0_use_peer"
     _log_proxy_diag(
         request,
-        hops=hops,
+        hops=_trusted_hops(),
         peer=peer,
         present_headers=present_headers,
         xff_entries=xff_entries,
-        branch="xff_invalid_use_peer",
+        branch=branch,
     )
-    return peer
+    return client

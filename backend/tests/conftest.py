@@ -79,7 +79,7 @@ def isolated_environment(monkeypatch):
     for var in ("ANTHROPIC_API_KEY", "VIRUSTOTAL_API_KEY", "URLSCAN_API_KEY"):
         monkeypatch.setenv(var, "")
     for var in (
-        "TRUSTED_PROXY_HOPS", "TRUSTED_PROXY_CIDRS",
+        "TRUSTED_PROXY_HOPS", "TRUSTED_PROXY_CIDRS", "TRUST_CF_CONNECTING_IP",
         "RATE_LIMIT_ANALYZE", "RATE_LIMIT_HISTORY", "RATE_LIMIT_STATS",
         "ANTHROPIC_MAX_PER_DAY", "ANTHROPIC_MAX_PER_HOUR",
     ):
