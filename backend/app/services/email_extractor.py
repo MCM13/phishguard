@@ -142,31 +142,57 @@ def _parse_email(content: str):
         return None
 
 
+_FALLBACK_ENCODINGS = ("utf-8", "cp1252", "latin-1")
+
+
+def _decode_bytes(data: bytes, declared_charset: Optional[str]) -> str:
+    """
+    Decodifica bytes sin perder caracteres: charset declarado, UTF-8, cp1252
+    y, como último recurso, latin-1 (que acepta cualquier byte).
+    """
+    candidates = ([declared_charset] if declared_charset else []) + list(_FALLBACK_ENCODINGS)
+    for encoding in candidates:
+        try:
+            return data.decode(encoding)
+        except (LookupError, UnicodeDecodeError):
+            continue
+    return data.decode("latin-1")
+
+
+def _part_text(part) -> str:
+    """
+    Texto de una parte text/*.
+
+    El contenido llega a la API ya decodificado (str de JSON), así que una
+    parte en 7bit/8bit contiene el texto final y se usa tal cual: no se
+    recodifica según el charset declarado. get_content() la convertiría a
+    bytes y la decodificaría como ASCII, perdiendo tildes y eñes. Sólo las
+    partes en base64 o quoted-printable contienen bytes que hay que decodificar.
+    """
+    cte = str(part.get("content-transfer-encoding") or "").strip().lower()
+    if cte not in ("base64", "quoted-printable"):
+        payload = part.get_payload(decode=False)
+        return payload if isinstance(payload, str) else ""
+
+    data = part.get_payload(decode=True)
+    if not isinstance(data, bytes):
+        return ""
+    return _decode_bytes(data, part.get_content_charset())
+
+
 def _get_body(msg) -> str:
     """Extrae el cuerpo (texto plano y HTML) de un email multipart o simple."""
     if msg is None:
         return ""
     try:
         if msg.is_multipart():
-            parts = []
-            for part in msg.walk():
-                ctype = part.get_content_type()
-                if ctype in ("text/plain", "text/html"):
-                    try:
-                        parts.append(part.get_content())
-                    except Exception:
-                        payload = part.get_payload(decode=True)
-                        if isinstance(payload, bytes):
-                            parts.append(payload.decode(errors="ignore"))
-            return "\n".join(parts)
-        else:
-            try:
-                return msg.get_content()
-            except Exception:
-                payload = msg.get_payload(decode=True)
-                if isinstance(payload, bytes):
-                    return payload.decode(errors="ignore")
-                return str(msg.get_payload() or "")
+            parts = [
+                _part_text(part)
+                for part in msg.walk()
+                if part.get_content_type() in ("text/plain", "text/html")
+            ]
+            return "\n".join(p for p in parts if p)
+        return _part_text(msg)
     except Exception:
         return ""
 
