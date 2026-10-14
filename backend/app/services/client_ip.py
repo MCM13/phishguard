@@ -95,14 +95,15 @@ def _log_proxy_diag(
     hops: int,
     peer: str,
     present_headers: List[str],
-    xff_entry_count: int,
+    xff_entries: List[str],
     branch: str,
 ) -> None:
-    """TEMPORAL: metadatos de proxy sin valores de IP ni secretos."""
+    """TEMPORAL: metadatos de proxy; IPs solo con UA PhishGuard-Verify*."""
     # Una sola línea por petición (rate limit y auditoría llaman ambos a get_client_ip).
     if getattr(request.state, "_proxy_diag_logged", False):
         return
     request.state._proxy_diag_logged = True
+    xff_entry_count = len(xff_entries)
     logger.warning(
         "TEMP proxy_diag hops=%d peer_is_loopback=%s peer_is_private=%s "
         "headers_present=%s xff_entry_count=%d branch=%s",
@@ -113,6 +114,18 @@ def _log_proxy_diag(
         xff_entry_count,
         branch,
     )
+    # Solo en peticiones de verificación propias: volcar valores para ver
+    # qué entrada/cabecera es la IP pública real y cuáles son falsificables.
+    ua = (request.headers.get("user-agent") or "").strip()
+    if ua.startswith("PhishGuard-Verify"):
+        logger.warning(
+            "TEMP proxy_diag_verify ua=%r xff_entries=%s cf_connecting_ip=%r "
+            "true_client_ip=%r",
+            ua[:80],
+            xff_entries,
+            request.headers.get("cf-connecting-ip"),
+            request.headers.get("true-client-ip"),
+        )
 
 
 def _is_private(host: str) -> bool:
@@ -142,7 +155,7 @@ def get_client_ip(request: Request) -> str:
             hops=hops,
             peer=peer,
             present_headers=present_headers,
-            xff_entry_count=xff_entry_count,
+            xff_entries=xff_entries,
             branch="hops0_use_peer",
         )
         return peer
@@ -156,7 +169,7 @@ def get_client_ip(request: Request) -> str:
                 hops=hops,
                 peer=peer,
                 present_headers=present_headers,
-                xff_entry_count=xff_entry_count,
+                xff_entries=xff_entries,
                 branch="cidr_reject_use_peer",
             )
             return peer
@@ -169,7 +182,7 @@ def get_client_ip(request: Request) -> str:
             hops=hops,
             peer=peer,
             present_headers=present_headers,
-            xff_entry_count=xff_entry_count,
+            xff_entries=xff_entries,
             branch="xff_too_short_use_peer",
         )
         return peer
@@ -181,7 +194,7 @@ def get_client_ip(request: Request) -> str:
             hops=hops,
             peer=peer,
             present_headers=present_headers,
-            xff_entry_count=xff_entry_count,
+            xff_entries=xff_entries,
             branch="xff_entries_minus_hops",
         )
         return client
@@ -191,7 +204,7 @@ def get_client_ip(request: Request) -> str:
         hops=hops,
         peer=peer,
         present_headers=present_headers,
-        xff_entry_count=xff_entry_count,
+        xff_entries=xff_entries,
         branch="xff_invalid_use_peer",
     )
     return peer

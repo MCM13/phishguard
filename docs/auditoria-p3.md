@@ -372,7 +372,8 @@ Todas en la rama `main`, en local: **no se ha hecho push ni se han creado tags**
 | 16 | `7f48582` | fix(rate-limit): contar tambien los 422 de analisis invalidos | Los 422 de `/api/analyze` ya cuentan para el límite |
 | 17 | `b905cf9` | chore(diag): log temporal de cabeceras de proxy sin exponer IPs | Diagnóstico de `get_client_ip` en Render |
 | 18 | `b4a8715` | fix(urlscan): no reenviar path/query y fijar visibility unlisted | Control de minimización de RF-06 |
-| 19 | `3818268` | docs: aclarar que render.yaml no aplica al servicio creado a mano | README, `render.yaml` y esta nota |
+| 19 | `7c56463` | docs: aclarar que render.yaml no aplica al servicio creado a mano | README, `render.yaml` y esta nota |
+| 20 | (este commit) | chore(diag): volcar IPs de proxy solo en UA PhishGuard-Verify | TEMP proxy_diag_verify |
 
 **Evidencias:**
 
