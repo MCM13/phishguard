@@ -8,8 +8,7 @@
 
 ## A. Pruebas automatizadas (pytest)
 
-**Evidencia:** [`evidencias/pytest.txt`](evidencias/pytest.txt) — **151 passed**, 1 warning (14/10/2026).  
-**Nota:** tras H-13 la suite local recoge **157** tests (`pytest --collect-only`). Actualizar `pytest.txt` queda **PENDIENTE** (código congelado para documentación).
+**Evidencia:** [`evidencias/pytest.txt`](evidencias/pytest.txt) — **157 passed**, 1 warning (14/10/2026).
 
 | ID | Requisito | Pasos | Resultado esperado | Resultado obtenido | Estado |
 |----|-----------|-------|--------------------|--------------------|--------|
@@ -20,7 +19,7 @@
 | PR-05 | RF-07, H-05 | `pytest tests/test_prompt_injection.py` (25): inyección, esquema estricto, suelo heurístico | PASSED; fuera de esquema → fallo IA | 25 PASSED | OK |
 | PR-06 | RF-09 | `pytest tests/test_external_failures.py` (11): VT/URLScan/Anthropic/WHOIS caídos | HTTP 200 sin filtrar detalles | 11 PASSED | OK |
 | PR-07 | RF-10, RF-11, RF-12, H-01 | `pytest tests/test_history.py` (9): 401 sin token, 200 con token sin cuerpos, stats | PASSED | 9 PASSED | OK |
-| PR-08 | RNF-01, H-03, H-13 | `pytest tests/test_rate_limit.py` (9 en evidencia; +3 CF tras H-13): 429, XFF, CF-Connecting-IP | PASSED | 9 PASSED en `pytest.txt`; tests CF **PENDIENTE** de figurar en la evidencia regenerada | OK / PENDIENTE evidencia |
+| PR-08 | RNF-01, H-03, H-13 | `pytest tests/test_rate_limit.py` (12): 429, XFF, CF-Connecting-IP (`TRUST_CF_CONNECTING_IP`) | PASSED | 12 PASSED en `pytest.txt` | OK |
 | PR-09 | RNF-02, RNF-03, RNF-04, RNF-09 | `pytest tests/test_security.py` (45): cabeceras, SSRF, validación, 500 genérico | PASSED | 45 PASSED | OK |
 | PR-10 | RF-15, RNF-05, RNF-06, RNF-09, RNF-12 | `pytest tests/test_platform.py` (7): OpenAPI en dev, no-root, auditoría, docs off en prod | PASSED | 7 PASSED | OK |
 | PR-11 | RNF-04, H-04 | `pytest tests/test_event_loop.py` (2): Claude/WHOIS no bloquean el loop | PASSED | 2 PASSED | OK |
@@ -56,7 +55,7 @@ Backend: `phishguard-backend-qszu.onrender.com`. Frontend: `phishguard.cmmario.c
 | PR-34 | RF-02, RF-07, H-12 | Email inventado con tildes | IA; acentos intactos | **PHISHING** score **78**, `ai`; tildes presentes en la respuesta | OK |
 | PR-35 | RNF-01, H-13 | 35× `GET /api/history` sin token (UA `PhishGuard-Verify-Final/1.0`) | 30×401 + 5×429 | **30×401 + 5×429** | OK |
 | PR-36 | RNF-01, H-13 | 12× `POST /api/analyze/url` body `{}` | 10×422 + 2×429 | **10×422 + 2×429** | OK |
-| PR-37 | RNF-01, H-13 | `GET /` con `X-Forwarded-For: 203.0.113.99` | 200; IP auditada = pública real | **200**; log `ip=91.117.233.113` (no 203.0.113.99) | OK |
+| PR-37 | RNF-01, H-13 | `GET /` con `X-Forwarded-For: 203.0.113.99` | 200; IP auditada = pública real | **200**; log `ip=91.117.233.xxx` (no 203.0.113.99) | OK |
 | PR-38 | RNF-11 | Abrir `https://phishguard.cmmario.com` | 200, UI PhishGuard | **200** | OK |
 
 ---
@@ -72,7 +71,7 @@ Backend: `phishguard-backend-qszu.onrender.com`. Frontend: `phishguard.cmmario.c
 | PR-44 | RNF-09 / **H-07** `/docs` en producción | `GET /docs` en Render | Antes: 200 docs. Después: 404 | PR-30 → **404** | OK |
 | PR-45 | RNF-01 / **422 sin contar** | 12× POST analyze inválido | Antes: solo 422, sin 429. Después: 10×422 + 2×429 | Antes: 12×422 0×429 (diagnóstico). Después: PR-36 | OK |
 | PR-46 | RF-04 / **H-12** codificación | Email sin Content-Type con «cerámica», «contraseña» | Antes: mojibake / frases no detectadas. Después: texto intacto | Antes: fallo en prueba IA real. Después: `test_email_encoding` 22 PASSED; PR-34 tildes OK | OK |
-| PR-47 | RNF-01 / **H-13** IP tras Cloudflare | Ver logs + martillo producción | Antes: IP `10.x` variable, 0×429. Después: IP pública estable + 429 | Antes: 10.24… / 10.30…, 0×429. Después: PR-35–37, `ip=91.117.233.113` | OK |
+| PR-47 | RNF-01 / **H-13** IP tras Cloudflare | Ver logs + martillo producción | Antes: IP `10.x` variable, 0×429. Después: IP pública estable + 429 | Antes: 10.24… / 10.30…, 0×429. Después: PR-35–37, `ip=91.117.233.xxx` | OK |
 
 ---
 

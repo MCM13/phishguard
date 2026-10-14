@@ -147,10 +147,10 @@ def test_get_client_ip_cf_connecting_ip_gana_sobre_xff_falso(monkeypatch):
         _request(
             "10.1.1.1",
             "203.0.113.99, 10.24.135.5",
-            cf_connecting_ip="91.117.233.113",
+            cf_connecting_ip="198.51.100.77",
         )
     )
-    assert ip == "91.117.233.113"
+    assert ip == "198.51.100.77"
 
 
 def test_get_client_ip_sin_trust_cf_ignora_cf_connecting_ip(monkeypatch):
@@ -161,7 +161,7 @@ def test_get_client_ip_sin_trust_cf_ignora_cf_connecting_ip(monkeypatch):
         _request(
             "10.1.1.1",
             "198.51.100.9, 203.0.113.7",
-            cf_connecting_ip="91.117.233.113",
+            cf_connecting_ip="198.51.100.77",
         )
     )
     assert ip == "203.0.113.7"

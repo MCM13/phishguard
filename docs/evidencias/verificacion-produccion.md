@@ -5,7 +5,7 @@
 - **Frontend:** https://phishguard.cmmario.com  
   (el apex `cmmario.com` no tiene registro A; la app vive en el subdominio)
 - **Commit desplegado al cierre:** `5f3feab` (+ `TRUST_CF_CONNECTING_IP=true` en el panel de Render)
-- **IP pública del verificador:** `91.117.233.113`
+- **IP pública del verificador:** `91.117.233.xxx`
 
 No se escribe ningún secreto (`ADMIN_TOKEN`, claves de API) en este fichero.
 
@@ -100,14 +100,14 @@ Detalle completo en `docs/auditoria-p3.md` (H-13).
 
 ### IP en el log de auditoría / slowapi
 
-Todas las líneas relevantes muestran **`ip": "91.117.233.113"`** (IP pública real), no `203.0.113.99` ni `10.x`:
+Todas las líneas relevantes muestran **`ip": "91.117.233.xxx"`** (IP pública real), no `203.0.113.99` ni `10.x`:
 
 ```text
-{"ts_utc": "2026-10-14T16:20:52.021371+00:00", "ip": "91.117.233.113", "method": "GET", "path": "/api/history", "status": 401, ..., "ua": "PhishGuard-Verify-Final/1.0"}
-... ratelimit 30 per 1 minute (91.117.233.113) exceeded at endpoint: /api/history
-{"ts_utc": "...", "ip": "91.117.233.113", "method": "GET", "path": "/api/history", "status": 429, "rate_limited": true, "ua": "PhishGuard-Verify-Final/1.0"}
-... ratelimit 10 per 1 minute (91.117.233.113) exceeded at endpoint: /api/analyze/url
-{"ts_utc": "2026-10-14T16:21:04.605413+00:00", "ip": "91.117.233.113", "method": "GET", "path": "/", "status": 200, "ua": "PhishGuard-Verify-Final/1.0"}
+{"ts_utc": "2026-10-14T16:20:52.021371+00:00", "ip": "91.117.233.xxx", "method": "GET", "path": "/api/history", "status": 401, ..., "ua": "PhishGuard-Verify-Final/1.0"}
+... ratelimit 30 per 1 minute (91.117.233.xxx) exceeded at endpoint: /api/history
+{"ts_utc": "...", "ip": "91.117.233.xxx", "method": "GET", "path": "/api/history", "status": 429, "rate_limited": true, "ua": "PhishGuard-Verify-Final/1.0"}
+... ratelimit 10 per 1 minute (91.117.233.xxx) exceeded at endpoint: /api/analyze/url
+{"ts_utc": "2026-10-14T16:21:04.605413+00:00", "ip": "91.117.233.xxx", "method": "GET", "path": "/", "status": 200, "ua": "PhishGuard-Verify-Final/1.0"}
 ```
 
 La última línea es la petición con `X-Forwarded-For` falsa: la IP auditada sigue siendo la real.

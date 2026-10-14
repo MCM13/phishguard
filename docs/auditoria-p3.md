@@ -235,7 +235,7 @@ Estado actual de cada hueco:
 | `.gitignore` | Ya no ignora `SECURITY.md` (`0d1b429`). Las demás sugerencias siguen pendientes. |
 | Licencia | **Resuelto en `0d1b429`** (MIT). |
 | `Dockerfile` y `docker-compose.yml` | uvicorn arranca con `--no-proxy-headers` (`e7fa375`) y `render.yaml` declara `URLSCAN_API_KEY` y `ADMIN_TOKEN` (`0d1d385`). `frontend/Dockerfile` usa `npm ci` (`e62c678`). Siguen pendientes los healthchecks. |
-| Pruebas automatizadas | **Resuelto en `796b8d6`** y ampliado en `f6b79c8`, `df134a9`, `4907f96` y `3acfb6b`: 151 tests con pytest en `backend/tests/`; salida en [`docs/evidencias/pytest.txt`](evidencias/pytest.txt). No hay tests de frontend ni CI. |
+| Pruebas automatizadas | **Resuelto en `796b8d6`** y ampliado (prompt injection, docs off, encoding, rate limit/CF…): **157 tests** con pytest en `backend/tests/`; salida en [`docs/evidencias/pytest.txt`](evidencias/pytest.txt). No hay tests de frontend ni CI. |
 | Etiqueta `v1.0-practica3` | **Pendiente a propósito:** en esta tanda se pidió no crear tags. |
 | Documento de seguridad | `SECURITY.md` versionado (`0d1b429`, ampliado en `0d1d385`). El STRIDE completo sigue pendiente para la memoria. |
 
@@ -369,7 +369,7 @@ Todas en la rama `main`, en local: **no se ha hecho push ni se han creado tags**
 | 12 | `4907f96` | perf: sacar del event loop las llamadas bloqueantes a la IA, WHOIS y DNS | H-04 y la nota de RNF-04 |
 | 13 | `bdb09ea` | docs: evidencias de pytest y auditoria actualizadas | Este apartado, `pytest.txt` (129 passed) y la limitación del README |
 | 14 | `3acfb6b` | fix(email): conservar tildes y enes del cuerpo con o sin charset declarado | H-12, encontrado en la prueba con la IA real |
-| 15 | `ca07da2` | docs: H-12 en la auditoria y evidencias de pytest | Este registro y `pytest.txt` (151 passed) |
+| 15 | `ca07da2` | docs: H-12 en la auditoria y evidencias de pytest | Este registro y `pytest.txt` (en ese momento; ahora 157 passed) |
 | 16 | `7f48582` | fix(rate-limit): contar tambien los 422 de analisis invalidos | Los 422 de `/api/analyze` ya cuentan para el límite |
 | 17 | `b905cf9` | chore(diag): log temporal de cabeceras de proxy sin exponer IPs | Diagnóstico de `get_client_ip` en Render |
 | 18 | `b4a8715` | fix(urlscan): no reenviar path/query y fijar visibility unlisted | Control de minimización de RF-06 |
@@ -382,7 +382,7 @@ Todas en la rama `main`, en local: **no se ha hecho push ni se han creado tags**
 
 - [`pip-audit-despues.txt`](evidencias/pip-audit-despues.txt)
 - [`npm-audit-despues.txt`](evidencias/npm-audit-despues.txt)
-- [`pytest.txt`](evidencias/pytest.txt): 151 passed (actualizar tras H-13)
+- [`pytest.txt`](evidencias/pytest.txt): 157 passed
 
 Los casos que se pidieron expresamente en los tests son estos:
 
