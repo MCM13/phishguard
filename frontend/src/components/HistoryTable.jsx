@@ -5,6 +5,7 @@ const VERDICT_PILL = {
   PHISHING: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30',
   SOSPECHOSO: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30',
   'LEGÍTIMO': 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
+  'NO CONCLUYENTE': 'bg-slate-400/15 text-slate-200 ring-1 ring-slate-400/30',
 };
 
 const FILTER_OPTIONS = [
@@ -12,6 +13,7 @@ const FILTER_OPTIONS = [
   { value: 'PHISHING', label: 'PHISHING' },
   { value: 'SOSPECHOSO', label: 'SOSPECHOSO' },
   { value: 'LEGÍTIMO', label: 'LEGÍTIMO' },
+  { value: 'NO CONCLUYENTE', label: 'NO CONCLUYENTE' },
 ];
 
 export default function HistoryTable({

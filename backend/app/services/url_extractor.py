@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-import tldextract
+from app.services.domain_utils import EXTRACT
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ def extract_url_features(raw_url: str) -> Dict[str, Any]:
     """
     url = _normalize_url(raw_url)
     parsed = urlparse(url)
-    extracted = tldextract.extract(url)
+    extracted = EXTRACT(url)
 
     # Subdominios: tldextract devuelve algo como "www.mail" -> 2 subdominios
     subdomain_str = extracted.subdomain or ""

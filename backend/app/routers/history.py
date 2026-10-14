@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.analysis import Analysis
 from app.services.anthropic_rate_limit import get_usage_status
+from app.services.claude_analyzer import ALL_VERDICTS
 from app.services.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ def get_history(
     page_size: int = Query(20, ge=1, le=100, description="Resultados por página"),
     verdict: Optional[str] = Query(
         None,
-        description="Filtra por veredicto: PHISHING, SOSPECHOSO o LEGÍTIMO",
+        description="Filtra por veredicto: PHISHING, SOSPECHOSO, LEGÍTIMO o NO CONCLUYENTE",
     ),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -40,13 +41,16 @@ def get_history(
         query = db.query(Analysis)
 
         if verdict:
-            normalized = verdict.upper().strip()
+            normalized = verdict.upper().strip().replace("_", " ")
             if normalized == "LEGITIMO":
                 normalized = "LEGÍTIMO"
-            if normalized not in {"PHISHING", "SOSPECHOSO", "LEGÍTIMO"}:
+            if normalized not in ALL_VERDICTS:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Veredicto inválido. Usa PHISHING, SOSPECHOSO o LEGÍTIMO.",
+                    detail=(
+                        "Veredicto inválido. Usa PHISHING, SOSPECHOSO, LEGÍTIMO "
+                        "o NO CONCLUYENTE."
+                    ),
                 )
             query = query.filter(Analysis.verdict == normalized)
 

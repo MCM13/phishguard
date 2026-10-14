@@ -7,6 +7,7 @@ import {
   Sparkles,
   Lock,
   Clock,
+  AlertTriangle,
 } from 'lucide-react';
 import ScoreGauge from './ScoreGauge.jsx';
 import IndicatorList from './IndicatorList.jsx';
@@ -33,6 +34,13 @@ const VERDICT_META = {
     pill: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40',
     accent: 'from-emerald-500/20 to-transparent',
   },
+  'NO CONCLUYENTE': {
+    icon: ShieldQuestion,
+    label: 'No concluyente',
+    glow: 'shadow-[0_0_60px_-12px_rgba(148,163,184,0.45)] border-slate-400/40',
+    pill: 'bg-slate-400/15 text-slate-200 ring-1 ring-slate-400/40',
+    accent: 'from-slate-400/15 to-transparent',
+  },
 };
 
 export default function ResultCard({ result }) {
@@ -41,6 +49,7 @@ export default function ResultCard({ result }) {
   const meta = VERDICT_META[result.verdict] || VERDICT_META.SOSPECHOSO;
   const Icon = meta.icon;
   const isPhish = result.verdict === 'PHISHING';
+  const isFallback = result.analysis_mode === 'fallback';
   const target = result.url || '';
 
   return (
@@ -70,6 +79,19 @@ export default function ResultCard({ result }) {
               </span>
             )}
           </div>
+
+          {isFallback && (
+            <div
+              role="status"
+              className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <span className="font-semibold">{result.analysis_label || 'Análisis limitado (sin IA)'}.</span>{' '}
+                El veredicto procede de reglas heurísticas locales; revísalo manualmente.
+              </div>
+            </div>
+          )}
 
           {target && (
             <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
@@ -101,7 +123,8 @@ export default function ResultCard({ result }) {
           {result.ai_explanation && (
             <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.04] p-4">
               <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-sky-300">
-                <Sparkles className="h-3.5 w-3.5" /> Análisis de Claude IA
+                <Sparkles className="h-3.5 w-3.5" />
+                {isFallback ? 'Análisis heurístico (sin IA)' : 'Análisis de Claude IA'}
               </div>
               <p className="text-sm leading-relaxed text-slate-200">{result.ai_explanation}</p>
             </div>

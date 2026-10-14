@@ -139,7 +139,9 @@ async def analyze_url_endpoint(
         }
 
         # 4. Veredicto final con Claude
-        ai_result = await claude_analyzer.analyze_with_claude(features, vt_result)
+        ai_result = await claude_analyzer.analyze_with_claude(
+            features, vt_result, analysis_type="url"
+        )
 
         vt_positives = int(vt_result.get("positives") or 0) if vt_result.get("available") else 0
 
@@ -165,6 +167,8 @@ async def analyze_url_endpoint(
             "virustotal_detections": record.virustotal_detections,
             "virustotal_available": bool(vt_result.get("available")),
             "virustotal_total_engines": int(vt_result.get("total_engines") or 0),
+            "analysis_mode": ai_result["analysis_mode"],
+            "analysis_label": ai_result["analysis_label"],
             "timestamp": record.timestamp.isoformat(),
         }
     except HTTPException:
@@ -190,9 +194,9 @@ async def analyze_email_endpoint(
     Si el email incluye URLs, también se analiza la primera de ellas con
     VirusTotal para enriquecer el contexto que ve la IA.
     """
-    # Strip de HTML/JS/CSS antes de cualquier procesamiento. Aunque PhishGuard
-    # nunca renderiza este contenido, eliminamos carga activa por defensa en
-    # profundidad y para reducir prompt-injection vía emails maliciosos.
+    # Strip de HTML/JS/CSS antes de persistir o enviar texto a la IA. Aunque
+    # PhishGuard nunca renderiza este contenido, eliminamos carga activa por
+    # defensa en profundidad y para reducir prompt-injection.
     sanitized_content = strip_html(payload.content).strip()
     if not sanitized_content:
         raise HTTPException(
@@ -201,7 +205,10 @@ async def analyze_email_endpoint(
         )
 
     try:
-        features = email_extractor.extract_email_features(sanitized_content)
+        # El extractor recibe el contenido original (sin renderizarlo) porque
+        # las cabeceras "Nombre <email>" y los <a href> engañosos se perderían
+        # al quitar el HTML. Internamente sólo expone texto ya saneado.
+        features = email_extractor.extract_email_features(payload.content)
 
         # Si encontramos URLs, enriquecemos con datos de VirusTotal de la primera
         urls = features.get("urls_found") or []
@@ -209,7 +216,9 @@ async def analyze_email_endpoint(
         if urls:
             vt_result = await virustotal.analyze_url(urls[0])
 
-        ai_result = await claude_analyzer.analyze_with_claude(features, vt_result)
+        ai_result = await claude_analyzer.analyze_with_claude(
+            features, vt_result, analysis_type="email"
+        )
 
         record = _persist_analysis(
             db,
@@ -229,6 +238,8 @@ async def analyze_email_endpoint(
             "verdict": record.verdict,
             "indicators": record.indicators,
             "ai_explanation": record.ai_explanation,
+            "analysis_mode": ai_result["analysis_mode"],
+            "analysis_label": ai_result["analysis_label"],
             "timestamp": record.timestamp.isoformat(),
         }
     except HTTPException:

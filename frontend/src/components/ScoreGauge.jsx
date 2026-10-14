@@ -7,10 +7,14 @@ const colorFor = (verdict) => {
   if (verdict === 'SOSPECHOSO') {
     return { stroke: '#f59e0b', glow: 'rgba(245,158,11,0.55)', label: 'text-amber-400' };
   }
+  if (verdict === 'NO CONCLUYENTE') {
+    return { stroke: '#94a3b8', glow: 'rgba(148,163,184,0.45)', label: 'text-slate-300' };
+  }
   return { stroke: '#10b981', glow: 'rgba(16,185,129,0.55)', label: 'text-emerald-400' };
 };
 
-const labelForScore = (score) => {
+const labelForScore = (score, verdict) => {
+  if (verdict === 'NO CONCLUYENTE') return 'Señales insuficientes';
   if (score <= 30) return 'Bajo riesgo';
   if (score <= 60) return 'Riesgo moderado';
   return 'Alto riesgo';
@@ -71,7 +75,7 @@ export default function ScoreGauge({ score = 0, verdict = 'SOSPECHOSO' }) {
           {Math.round(animated)}
         </div>
         <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Riesgo / 100</div>
-        <div className="mt-1 text-[10px] text-slate-600">{labelForScore(safeScore)}</div>
+        <div className="mt-1 text-[10px] text-slate-600">{labelForScore(safeScore, verdict)}</div>
       </div>
     </div>
   );
