@@ -16,6 +16,7 @@ claramente marcado como "Análisis limitado (sin IA)".
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -36,6 +37,9 @@ logger = logging.getLogger(__name__)
 # (Claude Sonnet 4.5). Se puede sobrescribir con la variable CLAUDE_MODEL.
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
 CLAUDE_MAX_TOKENS = 1024
+# Por debajo del timeout global de 30 s, para que el hilo no siga vivo
+# mucho después de que la petición haya respondido 504.
+CLAUDE_TIMEOUT_SECONDS = 25.0
 
 # Veredictos posibles. NO CONCLUYENTE sólo lo emite el modo heurístico:
 # sin IA no hay base para afirmar que algo es legítimo.
@@ -469,8 +473,10 @@ async def analyze_with_claude(
     prompt = _build_prompt(features, vt_result)
 
     try:
-        client = Anthropic(api_key=api_key)
-        message = client.messages.create(
+        client = Anthropic(api_key=api_key, timeout=CLAUDE_TIMEOUT_SECONDS, max_retries=1)
+        # El SDK es síncrono: se ejecuta en un hilo para no bloquear el event loop
+        message = await asyncio.to_thread(
+            client.messages.create,
             model=CLAUDE_MODEL,
             max_tokens=CLAUDE_MAX_TOKENS,
             system=SYSTEM_PROMPT,

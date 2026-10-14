@@ -14,6 +14,7 @@ detectar correctamente el body Pydantic. Con annotations diferidas
 detección falla devolviendo 422 ("missing in query").
 """
 
+import asyncio
 import hashlib
 import logging
 import uuid
@@ -119,9 +120,10 @@ async def analyze_url_endpoint(
             detail="La URL no puede estar vacía.",
         )
 
-    # Validación de formato + anti-SSRF antes de tocar ningún servicio
+    # Validación de formato + anti-SSRF antes de tocar ningún servicio.
+    # La resolución DNS y WHOIS son bloqueantes: se ejecutan en un hilo.
     try:
-        safe_url = validate_public_url(raw_url)
+        safe_url = await asyncio.to_thread(validate_public_url, raw_url)
     except UnsafeURLError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -129,8 +131,8 @@ async def analyze_url_endpoint(
         )
 
     try:
-        # 1. Extracción local de features
-        features = url_extractor.extract_url_features(safe_url)
+        # 1. Extracción local de features (incluye la consulta WHOIS)
+        features = await asyncio.to_thread(url_extractor.extract_url_features, safe_url)
 
         # 2 y 3. Consultas externas (toleran fallos individuales)
         vt_result = await virustotal.analyze_url(features.get("url", raw_url))

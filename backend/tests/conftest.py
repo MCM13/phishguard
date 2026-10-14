@@ -33,12 +33,15 @@ for _var in ("ANTHROPIC_API_KEY", "VIRUSTOTAL_API_KEY", "URLSCAN_API_KEY", "FRON
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.database import SessionLocal  # noqa: E402
+from app.database import SessionLocal, init_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.analysis import Analysis  # noqa: E402
 from app.models.anthropic_usage import AnthropicUsageLog  # noqa: E402
 from app.services import claude_analyzer, url_extractor, url_validator  # noqa: E402
 from app.services.rate_limit import limiter  # noqa: E402
+
+# Tablas creadas aunque el primer test no arranque la app con TestClient
+init_db()
 
 PUBLIC_TEST_IP = ipaddress.ip_address("93.184.216.34")
 _REAL_ASYNC_CLIENT = httpx.AsyncClient
@@ -130,7 +133,7 @@ class FakeAnthropic:
     error: Exception | None = None
     last_request: dict = {}
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, **options):
         self.messages = SimpleNamespace(create=self._create)
 
     def _create(self, **kwargs):
