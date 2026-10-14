@@ -48,7 +48,7 @@ export default function HistoryTable({
           ))}
         </div>
         {totalCount != null && (
-          <span className="text-xs text-slate-500">{totalCount} en esta página</span>
+          <span className="text-xs text-slate-500">{totalCount} análisis en total</span>
         )}
       </div>
 
@@ -64,7 +64,8 @@ export default function HistoryTable({
               <tr className="border-b border-white/5 text-left text-[10px] uppercase tracking-wider text-slate-500">
                 <th className="px-4 py-3 font-semibold">Veredicto</th>
                 <th className="px-4 py-3 font-semibold">Tipo</th>
-                <th className="px-4 py-3 font-semibold">Entrada</th>
+                <th className="px-4 py-3 font-semibold">Dominio</th>
+                <th className="px-4 py-3 font-semibold">Huella</th>
                 <th className="px-4 py-3 font-semibold text-center">Score</th>
                 <th className="px-4 py-3 font-semibold">Fecha</th>
               </tr>
@@ -72,7 +73,7 @@ export default function HistoryTable({
             <tbody>
               {!items.length && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
                     Aún no hay análisis registrados.
                   </td>
                 </tr>
@@ -80,8 +81,7 @@ export default function HistoryTable({
               {items.map((item) => {
                 const pill = VERDICT_PILL[item.verdict] || VERDICT_PILL.SOSPECHOSO;
                 const isPhish = item.verdict === 'PHISHING';
-                const inputText = (item.url || item.input || '').slice(0, 80);
-                const fullText = item.url || item.input || '';
+                const domain = item.domain || '—';
                 const date = item.timestamp
                   ? new Date(item.timestamp).toLocaleString('es-ES')
                   : '';
@@ -99,22 +99,32 @@ export default function HistoryTable({
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-400">
                       {item.type === 'url' ? 'URL' : 'Email'}
+                      {item.analysis_mode === 'fallback' && (
+                        <span className="ml-2 text-[10px] text-amber-300/80" title="Análisis limitado (sin IA)">
+                          sin IA
+                        </span>
+                      )}
                     </td>
-                    <td className="max-w-[320px] px-4 py-3 font-mono text-xs sm:max-w-[420px]">
+                    <td className="max-w-[260px] px-4 py-3 font-mono text-xs sm:max-w-[320px]">
                       {isPhish ? (
                         <span
                           className="flex items-center gap-2 text-red-300/80 line-through decoration-red-500/40"
-                          title={fullText}
+                          title={domain}
                         >
                           <Lock className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{inputText}</span>
+                          <span className="truncate">{domain}</span>
                         </span>
                       ) : (
-                        <span className="block truncate text-slate-300" title={fullText}>
-                          {inputText}
-                          {fullText.length > 80 ? '…' : ''}
+                        <span className="block truncate text-slate-300" title={domain}>
+                          {domain}
                         </span>
                       )}
+                    </td>
+                    <td
+                      className="whitespace-nowrap px-4 py-3 font-mono text-[11px] text-slate-500"
+                      title="Huella SHA-256 del contenido analizado (primeros 16 caracteres)"
+                    >
+                      {item.fingerprint || '—'}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-center font-display font-semibold tabular-nums text-slate-100">
                       {item.score}

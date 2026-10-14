@@ -1,7 +1,7 @@
 """
 Router con endpoints de consulta:
-  GET /api/history  -> historial paginado de análisis
-  GET /api/stats    -> estadísticas globales agregadas
+  GET /api/history  -> historial paginado de análisis (requiere ADMIN_TOKEN)
+  GET /api/stats    -> estadísticas globales agregadas (públicas, sin datos personales)
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.analysis import Analysis
+from app.services.admin_auth import require_admin
 from app.services.anthropic_rate_limit import get_usage_status
 from app.services.claude_analyzer import ALL_VERDICTS
 from app.services.rate_limit import limiter
@@ -36,7 +37,13 @@ def get_history(
     ),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Devuelve el listado paginado de análisis ordenados del más reciente al más antiguo."""
+    """
+    Devuelve el listado paginado de análisis ordenados del más reciente al
+    más antiguo. Requiere `Authorization: Bearer <ADMIN_TOKEN>`.
+    """
+    # Se comprueba dentro del handler (no como dependencia) para que el rate
+    # limit de slowapi cuente también los intentos fallidos de token.
+    require_admin(request)
     try:
         query = db.query(Analysis)
 

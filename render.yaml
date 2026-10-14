@@ -22,6 +22,11 @@ services:
         value: "20"
       - key: VIRUSTOTAL_API_KEY
         sync: false
+      - key: URLSCAN_API_KEY
+        sync: false
+      # Token para consultar el historial; defínelo en el panel de Render
+      - key: ADMIN_TOKEN
+        sync: false
       # SQLite en /tmp (escribible). Para persistir entre redeploys, monta un
       # Persistent Disk en /var/data y usa: sqlite:////var/data/phishguard.db
       - key: DATABASE_URL

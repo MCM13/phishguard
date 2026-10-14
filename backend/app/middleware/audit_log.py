@@ -11,6 +11,8 @@ Datos registrados:
   verdict      - (Opcional) Veredicto del análisis si el handler lo expuso
                  en request.state.audit_verdict.
   rate_limited - (Opcional) True si la petición fue rechazada por rate limit.
+  event        - (Opcional) "admin_auth_failed" si se intentó acceder al
+                 historial sin el token correcto; `reason` indica el motivo.
 
 Lo que NO se registra (a propósito):
   - API keys ni cabeceras de autorización.
@@ -80,6 +82,12 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             verdict = getattr(request.state, "audit_verdict", None)
             if verdict:
                 entry["verdict"] = verdict
+
+            # Intentos fallidos de acceso a endpoints protegidos (sin el token)
+            event = getattr(request.state, "audit_event", None)
+            if event:
+                entry["event"] = event
+                entry["reason"] = getattr(request.state, "audit_reason", None)
 
             if status_code == 429:
                 entry["rate_limited"] = True

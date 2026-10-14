@@ -26,6 +26,7 @@ from app.middleware.request_guards import (
 )
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.routers import analyze, history
+from app.services.admin_auth import warn_if_weak_configuration
 from app.services.rate_limit import limiter
 
 # Configuración de logging para producción
@@ -106,6 +107,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRe
 def on_startup() -> None:
     """Inicializa la base de datos al arrancar la aplicación."""
     init_db()
+    warn_if_weak_configuration()
 
 
 @app.get("/", tags=["health"])

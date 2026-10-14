@@ -14,11 +14,15 @@ En Render (y otros PaaS con filesystem efímero):
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
+import re
+from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -104,6 +108,70 @@ def get_db():
         db.close()
 
 
+def _parse_legacy_timestamp(value) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return datetime.utcnow()
+
+
+def _legacy_email_domain(text_value: str) -> str | None:
+    match = re.search(r"^from:.*?[\w\.\-+]+@([\w\.-]+)", text_value or "", re.IGNORECASE | re.MULTILINE)
+    return match.group(1).lower() if match else None
+
+
+def _migrate_legacy_analyses() -> None:
+    """
+    Convierte la tabla `analyses` del esquema anterior (que guardaba el texto
+    completo de los emails, la URL, la explicación y los indicadores) al
+    esquema minimizado. Los datos personales se descartan y el fichero SQLite
+    se compacta con VACUUM para que no queden en páginas libres.
+    """
+    insp = inspect(engine)
+    if "analyses" not in insp.get_table_names():
+        return
+    columns = {col["name"] for col in insp.get_columns("analyses")}
+    if "input_data" not in columns:
+        return
+
+    from app.models.analysis import Analysis
+
+    logger.warning("Migrando 'analyses' al esquema minimizado: se descarta el contenido analizado.")
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text("SELECT id, type, url, input_data, score, verdict, timestamp FROM analyses")
+        ).mappings().all()
+        conn.execute(text("DROP TABLE analyses"))
+        Analysis.__table__.create(bind=conn)
+
+        minimized = []
+        for row in rows:
+            source = row["url"] or row["input_data"] or ""
+            if row["type"] == "url":
+                domain = (urlparse(source).hostname or None) if "://" in source else None
+            else:
+                domain = _legacy_email_domain(row["input_data"])
+            minimized.append({
+                "id": row["id"],
+                "type": row["type"],
+                "score": row["score"],
+                "verdict": row["verdict"],
+                "analysis_mode": None,
+                "target_domain": domain,
+                "input_hash": hashlib.sha256(source.encode("utf-8")).hexdigest() if source else None,
+                "timestamp": _parse_legacy_timestamp(row["timestamp"]),
+            })
+        if minimized:
+            conn.execute(Analysis.__table__.insert(), minimized)
+
+    if DATABASE_URL.startswith("sqlite"):
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.exec_driver_sql("VACUUM")
+    logger.warning("Migración completada: %d registros minimizados.", len(rows))
+
+
 def init_db() -> None:
     """Crea todas las tablas declaradas en los modelos si no existen."""
     _ensure_sqlite_parent_dir(DATABASE_URL)
@@ -112,6 +180,7 @@ def init_db() -> None:
     from app.models import analysis, anthropic_usage  # noqa: F401
 
     try:
+        _migrate_legacy_analyses()
         Base.metadata.create_all(bind=engine)
         logger.info(
             "Base de datos inicializada (%s)",

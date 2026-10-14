@@ -1,19 +1,23 @@
 """
 Modelo ORM para almacenar el historial de análisis de phishing.
 
-Cada registro representa un análisis individual de una URL o un email,
-incluyendo el score asignado por la IA, el veredicto final y los
-indicadores que se detectaron.
+Minimización de datos: no se guarda el texto de los emails ni la URL
+completa, ni la explicación o los indicadores (pueden citar fragmentos del
+mensaje). Sólo se conserva lo necesario para estadísticas y auditoría:
+tipo, veredicto, score, modo de análisis, fecha, el dominio del remitente o
+de la URL, y una huella SHA-256 del contenido para reconocer duplicados sin
+poder reconstruirlo.
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text, JSON
+
+from sqlalchemy import Column, DateTime, Integer, String
 
 from app.database import Base
 
 
 class Analysis(Base):
-    """Registro de un análisis realizado (URL o email)."""
+    """Registro minimizado de un análisis realizado (URL o email)."""
 
     __tablename__ = "analyses"
 
@@ -23,27 +27,20 @@ class Analysis(Base):
     # Tipo de análisis: "url" o "email"
     type = Column(String(16), nullable=False, index=True)
 
-    # Entrada original que se analizó (URL completa o texto del email)
-    # Se trunca a un máximo razonable para evitar entradas gigantescas
-    input_data = Column(Text, nullable=False)
-
-    # URL detectada/analizada (sólo para análisis de tipo URL)
-    url = Column(Text, nullable=True)
-
-    # Score numérico 0-100 devuelto por la IA
+    # Score numérico 0-100
     score = Column(Integer, nullable=False)
 
-    # Veredicto: PHISHING | SOSPECHOSO | LEGÍTIMO
+    # Veredicto: PHISHING | SOSPECHOSO | LEGÍTIMO | NO CONCLUYENTE
     verdict = Column(String(32), nullable=False, index=True)
 
-    # Indicadores devueltos por la IA (lista de dicts serializada a JSON)
-    indicators = Column(JSON, nullable=False, default=list)
+    # "ai" o "fallback" (heurística sin IA). NULL en registros migrados.
+    analysis_mode = Column(String(16), nullable=True)
 
-    # Explicación generada por Claude
-    ai_explanation = Column(Text, nullable=False, default="")
+    # Hostname de la URL o dominio del remitente del email (si se conoce)
+    target_domain = Column(String(255), nullable=True)
 
-    # Número de motores de VirusTotal que marcaron la URL como maliciosa
-    virustotal_detections = Column(Integer, nullable=True, default=0)
+    # SHA-256 (hex) de la URL normalizada o del texto del email saneado
+    input_hash = Column(String(64), nullable=True)
 
     # Marca temporal de creación
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
@@ -53,12 +50,10 @@ class Analysis(Base):
         return {
             "id": self.id,
             "type": self.type,
-            "input": self.input_data,
-            "url": self.url,
             "score": self.score,
             "verdict": self.verdict,
-            "indicators": self.indicators or [],
-            "ai_explanation": self.ai_explanation,
-            "virustotal_detections": self.virustotal_detections,
+            "analysis_mode": self.analysis_mode,
+            "domain": self.target_domain,
+            "fingerprint": self.input_hash[:16] if self.input_hash else None,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }

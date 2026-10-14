@@ -21,10 +21,24 @@ export const analyzeEmail = async (content) => {
   return data;
 };
 
+// El token de administrador se guarda sólo en memoria: sobrevive a la
+// navegación entre páginas pero no a recargar la pestaña, y no queda en
+// localStorage/sessionStorage.
+let adminToken = '';
+
+export const setAdminToken = (token) => {
+  adminToken = (token || '').trim();
+};
+
+export const hasAdminToken = () => adminToken.length > 0;
+
 export const getHistory = async ({ page = 1, pageSize = 20, verdict = null } = {}) => {
   const params = { page, page_size: pageSize };
   if (verdict) params.verdict = verdict;
-  const { data } = await api.get('/api/history', { params });
+  const { data } = await api.get('/api/history', {
+    params,
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
   return data;
 };
 
@@ -52,6 +66,8 @@ export const friendlyError = (err) => {
         return typeof detail === 'string'
           ? detail
           : 'La información enviada no es válida.';
+      case 401:
+        return 'Token de administrador ausente o no válido.';
       case 413:
         return 'El contenido enviado es demasiado grande.';
       case 415:

@@ -14,10 +14,12 @@ detectar correctamente el body Pydantic. Con annotations diferidas
 detección falla devolviendo 422 ("missing in query").
 """
 
+import hashlib
 import logging
 import uuid
 from datetime import datetime
 from typing import Annotated, Any, Dict
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -62,23 +64,26 @@ def _persist_analysis(
     *,
     analysis_type: str,
     input_data: str,
-    url: str | None,
+    domain: str | None,
     ai_result: Dict[str, Any],
-    vt_positives: int | None,
 ) -> Analysis:
-    """Crea y guarda el registro de análisis en la base de datos."""
+    """
+    Guarda un registro minimizado del análisis.
+
+    El contenido analizado sólo se conserva como huella SHA-256; el texto,
+    la URL completa, la explicación y los indicadores se devuelven al
+    usuario en la respuesta pero no se almacenan.
+    """
+    normalized = safe_string(input_data, max_len=50_000).strip()
+    clean_domain = safe_string(domain, max_len=255).strip().lower() if domain else ""
     record = Analysis(
         id=str(uuid.uuid4()),
         type=analysis_type,
-        # safe_string elimina caracteres de control y normaliza Unicode
-        # antes de persistir, evitando guardar bytes raros en SQLite.
-        input_data=safe_string(input_data, max_len=10_000),
-        url=safe_string(url, max_len=2048) if url else None,
         score=int(ai_result["score"]),
         verdict=ai_result["verdict"],
-        indicators=ai_result.get("indicators", []),
-        ai_explanation=safe_string(ai_result.get("explanation", ""), max_len=5_000),
-        virustotal_detections=vt_positives,
+        analysis_mode=ai_result.get("analysis_mode"),
+        target_domain=clean_domain or None,
+        input_hash=hashlib.sha256(normalized.encode("utf-8")).hexdigest(),
         timestamp=datetime.utcnow(),
     )
     db.add(record)
@@ -145,13 +150,13 @@ async def analyze_url_endpoint(
 
         vt_positives = int(vt_result.get("positives") or 0) if vt_result.get("available") else 0
 
+        analyzed_url = features.get("url", safe_url)
         record = _persist_analysis(
             db,
             analysis_type="url",
-            input_data=safe_url,
-            url=features.get("url", safe_url),
+            input_data=analyzed_url,
+            domain=urlparse(analyzed_url).hostname,
             ai_result=ai_result,
-            vt_positives=vt_positives,
         )
 
         # Exponemos el veredicto al middleware de auditoría sin loguear la URL
@@ -159,12 +164,12 @@ async def analyze_url_endpoint(
 
         return {
             "id": record.id,
-            "url": record.url,
+            "url": analyzed_url,
             "score": record.score,
             "verdict": record.verdict,
-            "indicators": record.indicators,
-            "ai_explanation": record.ai_explanation,
-            "virustotal_detections": record.virustotal_detections,
+            "indicators": ai_result.get("indicators", []),
+            "ai_explanation": ai_result.get("explanation", ""),
+            "virustotal_detections": vt_positives,
             "virustotal_available": bool(vt_result.get("available")),
             "virustotal_total_engines": int(vt_result.get("total_engines") or 0),
             "analysis_mode": ai_result["analysis_mode"],
@@ -224,9 +229,8 @@ async def analyze_email_endpoint(
             db,
             analysis_type="email",
             input_data=sanitized_content,
-            url=None,
+            domain=features.get("sender_domain") or None,
             ai_result=ai_result,
-            vt_positives=None,
         )
 
         request.state.audit_verdict = record.verdict
@@ -236,8 +240,8 @@ async def analyze_email_endpoint(
             "id": record.id,
             "score": record.score,
             "verdict": record.verdict,
-            "indicators": record.indicators,
-            "ai_explanation": record.ai_explanation,
+            "indicators": ai_result.get("indicators", []),
+            "ai_explanation": ai_result.get("explanation", ""),
             "analysis_mode": ai_result["analysis_mode"],
             "analysis_label": ai_result["analysis_label"],
             "timestamp": record.timestamp.isoformat(),
