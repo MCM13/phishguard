@@ -3,9 +3,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Instalamos dependencias en una capa separada para aprovechar la caché
-COPY package.json ./
-RUN npm install
+# Instalamos dependencias en una capa separada para aprovechar la caché.
+# npm ci instala exactamente lo fijado en package-lock.json (las versiones
+# auditadas) y falla si el lockfile no coincide con package.json.
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copiamos el resto del código y compilamos la SPA
 COPY . .
