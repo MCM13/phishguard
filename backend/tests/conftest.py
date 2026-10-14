@@ -128,12 +128,14 @@ class FakeAnthropic:
     calls = 0
     response_text = ""
     error: Exception | None = None
+    last_request: dict = {}
 
     def __init__(self, api_key: str):
         self.messages = SimpleNamespace(create=self._create)
 
     def _create(self, **kwargs):
         FakeAnthropic.calls += 1
+        FakeAnthropic.last_request = kwargs
         if FakeAnthropic.error is not None:
             raise FakeAnthropic.error
         return SimpleNamespace(content=[SimpleNamespace(text=FakeAnthropic.response_text)])
@@ -145,6 +147,7 @@ def fake_claude(monkeypatch):
     FakeAnthropic.calls = 0
     FakeAnthropic.response_text = ""
     FakeAnthropic.error = None
+    FakeAnthropic.last_request = {}
     monkeypatch.setenv("ANTHROPIC_API_KEY", "clave-ficticia-de-test")
     monkeypatch.setattr(claude_analyzer, "Anthropic", FakeAnthropic)
     return FakeAnthropic

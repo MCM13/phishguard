@@ -174,6 +174,7 @@ async def analyze_url_endpoint(
             "virustotal_total_engines": int(vt_result.get("total_engines") or 0),
             "analysis_mode": ai_result["analysis_mode"],
             "analysis_label": ai_result["analysis_label"],
+            "discrepancy": ai_result.get("discrepancy"),
             "timestamp": record.timestamp.isoformat(),
         }
     except HTTPException:
@@ -244,6 +245,7 @@ async def analyze_email_endpoint(
             "ai_explanation": ai_result.get("explanation", ""),
             "analysis_mode": ai_result["analysis_mode"],
             "analysis_label": ai_result["analysis_label"],
+            "discrepancy": ai_result.get("discrepancy"),
             "timestamp": record.timestamp.isoformat(),
         }
     except HTTPException:

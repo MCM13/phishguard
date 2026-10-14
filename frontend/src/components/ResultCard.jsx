@@ -50,6 +50,7 @@ export default function ResultCard({ result }) {
   const Icon = meta.icon;
   const isPhish = result.verdict === 'PHISHING';
   const isFallback = result.analysis_mode === 'fallback';
+  const discrepancy = result.discrepancy;
   const target = result.url || '';
 
   return (
@@ -89,6 +90,21 @@ export default function ResultCard({ result }) {
               <div>
                 <span className="font-semibold">{result.analysis_label || 'Análisis limitado (sin IA)'}.</span>{' '}
                 El veredicto procede de reglas heurísticas locales; revísalo manualmente.
+              </div>
+            </div>
+          )}
+
+          {discrepancy && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <span className="font-semibold">Discrepancia entre IA y heurísticas.</span>{' '}
+                La IA lo calificó como {discrepancy.ai_verdict} ({discrepancy.ai_score}/100), pero las
+                reglas locales detectan riesgo alto ({discrepancy.heuristic_score}/100). Se muestra el
+                veredicto más severo: el contenido podría intentar manipular el análisis.
               </div>
             </div>
           )}

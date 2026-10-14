@@ -7,22 +7,23 @@ import json
 from app.services import anthropic_rate_limit
 
 
-def test_rf07_respuesta_de_la_ia_se_normaliza(client, fake_claude):
-    fake_claude.response_text = "Aquí va el análisis:\n" + json.dumps({
-        "score": 150,
-        "verdict": "legitimo",
-        "indicators": [{"name": "Dominio conocido", "severity": "crítica", "detail": "ok"}, "basura"],
+def test_rf07_respuesta_valida_de_la_ia(client, fake_claude):
+    fake_claude.response_text = "```json\n" + json.dumps({
+        "score": 12,
+        "verdict": "LEGÍTIMO",
+        "indicators": [{"name": "Dominio conocido", "severity": "low", "detail": "ok"}],
         "explanation": "Parece legítimo.",
-    })
+    }) + "\n```"
 
     body = client.post("/api/analyze/url", json={"url": "https://www.example.com/"}).json()
 
     assert fake_claude.calls == 1
     assert body["analysis_mode"] == "ai"
     assert body["analysis_label"] == "Análisis con IA"
-    assert body["score"] == 100
+    assert body["score"] == 12
     assert body["verdict"] == "LEGÍTIMO"
     assert body["indicators"] == [{"name": "Dominio conocido", "severity": "low", "detail": "ok"}]
+    assert body["discrepancy"] is None
 
 
 def test_rf07_respuesta_no_json_de_la_ia_activa_el_respaldo(client, fake_claude):
