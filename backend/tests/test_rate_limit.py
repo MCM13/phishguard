@@ -68,6 +68,28 @@ def test_rnf01_historial_limita_intentos_de_token(client, monkeypatch):
     assert codes == [401] * 5 + [429] * 2
 
 
+def test_rnf01_historial_sin_token_cuenta_para_el_limite_por_defecto(client, monkeypatch):
+    """El 401 de ADMIN_TOKEN no debe saltarse el rate limit (30/min por defecto)."""
+    monkeypatch.setenv("RATE_LIMIT_HISTORY", "30/minute")
+
+    codes = [client.get("/api/history").status_code for _ in range(35)]
+
+    assert codes[:30] == [401] * 30
+    assert codes[30:] == [429] * 5
+
+
+def test_rnf01_analisis_invalido_422_tambien_cuenta(client, monkeypatch):
+    """FastAPI no debe devolver 422 antes de que slowapi cuente la petición."""
+    monkeypatch.setenv("RATE_LIMIT_ANALYZE", "3/minute")
+
+    codes = [
+        client.post("/api/analyze/url", json={"url": "ab"}).status_code
+        for _ in range(5)
+    ]
+
+    assert codes == [422, 422, 422, 429, 429]
+
+
 def test_rnf01_stats_tiene_limite(client, monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_STATS", "2/minute")
 

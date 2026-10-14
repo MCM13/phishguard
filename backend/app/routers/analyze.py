@@ -19,11 +19,12 @@ import hashlib
 import logging
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Dict
+from typing import Any, Dict, Type, TypeVar
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -43,6 +44,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/analyze", tags=["analyze"])
 
+_T = TypeVar("_T", bound=BaseModel)
+
 
 # ---------------- Esquemas Pydantic ----------------
 
@@ -58,6 +61,35 @@ class EmailAnalysisRequest(BaseModel):
 
 
 # ---------------- Helpers ----------------
+
+
+async def _parse_json_body(request: Request, model: Type[_T]) -> _T:
+    """
+    Valida el JSON *después* de entrar al handler.
+
+    Si el body fuera un parámetro `Body()` de FastAPI, la validación 422
+    ocurriría antes de ejecutar el decorador de slowapi y esas peticiones
+    no contarían para el rate limit.
+    """
+    try:
+        data = await request.json()
+    except Exception as exc:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "json_invalid",
+                    "loc": ("body",),
+                    "msg": "JSON inválido",
+                    "input": None,
+                    "ctx": {"error": str(exc)},
+                }
+            ]
+        ) from exc
+    try:
+        return model.model_validate(data)
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors()) from exc
+
 
 
 def _persist_analysis(
@@ -100,10 +132,6 @@ def _persist_analysis(
 @limiter.limit(analyze_limit)
 async def analyze_url_endpoint(
     request: Request,
-    # Annotated[Model, Body()] es obligatorio cuando se combina con
-    # `from __future__ import annotations` + @limiter.limit, porque el
-    # decorador altera la firma y FastAPI necesita la anotación explícita.
-    payload: Annotated[URLAnalysisRequest, Body()],
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -112,7 +140,11 @@ async def analyze_url_endpoint(
       2. VirusTotal (si está disponible).
       3. URLScan.io (si está disponible).
       4. Veredicto final generado por Claude.
+
+    El cuerpo se valida dentro del handler para que el rate limit cuente
+    también las peticiones malformadas (422).
     """
+    payload = await _parse_json_body(request, URLAnalysisRequest)
     raw_url = payload.url.strip()
     if not raw_url:
         raise HTTPException(
@@ -193,7 +225,6 @@ async def analyze_url_endpoint(
 @limiter.limit(analyze_limit)
 async def analyze_email_endpoint(
     request: Request,
-    payload: Annotated[EmailAnalysisRequest, Body()],
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -201,7 +232,11 @@ async def analyze_email_endpoint(
 
     Si el email incluye URLs, también se analiza la primera de ellas con
     VirusTotal para enriquecer el contexto que ve la IA.
+
+    El cuerpo se valida dentro del handler para que el rate limit cuente
+    también las peticiones malformadas (422).
     """
+    payload = await _parse_json_body(request, EmailAnalysisRequest)
     # Strip de HTML/JS/CSS antes de persistir o enviar texto a la IA. Aunque
     # PhishGuard nunca renderiza este contenido, eliminamos carga activa por
     # defensa en profundidad y para reducir prompt-injection.
