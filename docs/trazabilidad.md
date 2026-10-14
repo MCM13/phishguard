@@ -35,7 +35,7 @@ Los huecos **«Vídeo mm:ss»** los rellena el autor tras la grabación.
 | RNF-13 | UI en español | Cumplido | `frontend/src/*`, prompt Claude | PR-50–54 | Vídeo mm:ss |
 | D-01 | Hetzner → Render/CF | **A revisar** | Despliegue actual | PR-60 | `requisitos.md` §3; Vídeo mm:ss |
 | D-06 | Auth usuarios vs ADMIN_TOKEN | **A revisar** | `admin_auth.py` | PR-31, PR-53 | `requisitos.md`; Vídeo mm:ss |
-| D-10 | VT/URLScan en paralelo | **A revisar** | `analyze.py` (secuencia) | — | `requisitos.md`; **PENDIENTE** decisión memoria |
+| D-10 | VT/URLScan secuenciales (doc corregida) | **Cerrado** | `analyze.py` (secuencia) | — | `requisitos.md` §3; paralelizar con `asyncio.gather` = trabajo futuro |
 
 ### Hallazgos de seguridad enlazados (no son RF, sí trazan a pruebas)
 

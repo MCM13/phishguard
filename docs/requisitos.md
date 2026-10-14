@@ -143,10 +143,10 @@
 
 | | |
 |--|--|
-| **Estado** | **A revisar** |
+| **Estado** | **Cerrado** (documentación corregida) |
 | **Versión original** | Informe P1 §5.3 paso 4: consultas «en paralelo lógico». |
-| **Versión nueva** | En código se ejecutan **en secuencia** (`analyze.py`). |
-| **Justificación** | Desajuste documentación/código. Corregir el texto de la memoria o usar `asyncio.gather`. **PENDIENTE** de decisión en la memoria final. |
+| **Versión nueva** | Las consultas a VirusTotal y URLScan son **secuenciales** (`analyze.py`). |
+| **Justificación** | Se corrige la documentación para alinearla con el código. El impacto en la latencia se acepta; paralelizarlas con `asyncio.gather` queda como **trabajo futuro**. |
 
 ---
 
