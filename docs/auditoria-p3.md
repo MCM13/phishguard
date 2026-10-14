@@ -7,9 +7,13 @@
   - Enunciado: `Práctica_3_Evolve.pdf`
   - Informe P1: `PhishGuard_Practica1_Mario_Cruz_Martinez.pdf`
   - Enunciado P1: `practica_ciberseguridad_IA.pdf`, consultado solo para contrastar los requisitos obligatorios de la P1
-- **Alcance:** solo análisis. No se ha modificado ningún fichero del proyecto ni se ha reescrito el historial. Los únicos ficheros nuevos son este informe y `docs/evidencias/{pip-audit,npm-audit}.txt`.
+- **Alcance:** la auditoría inicial fue solo de análisis, sin modificar ningún fichero del proyecto ni reescribir el historial. Las correcciones posteriores se hicieron en 8 commits, uno por bloque, sin push ni tags. Su estado está en el [apartado 7](#7-correcciones-aplicadas) y en las columnas «Estado» de los apartados 3 y 5, actualizadas con el commit que resuelve cada punto.
 
-## Resumen
+> **Estado a 14/10/2026, tras las correcciones:** se han resuelto H-01, H-02, H-03 y H-07, y RF-08 y RNF-01 pasan a Cumplido. Hay 101 tests automáticos que pasan. pip-audit da 0 vulnerabilidades y npm audit 2 moderadas en producción, aceptadas como RA-02. Lo que sigue abierto está en el [apartado 7.2](#72-qué-sigue-abierto).
+>
+> Los apartados 3 y 5, el 2.3 y la primera tabla del apartado 4 reflejan el estado actual. El «Resumen» de este apartado, los apartados 1, 2.1 y 2.2, la segunda tabla del 4 y el 6 son el diagnóstico original. En el 6 solo se han añadido las marcas de «Hecho».
+
+## Resumen (diagnóstico original)
 
 | Área | Resultado |
 |------|-----------|
@@ -129,7 +133,7 @@ Salidas completas:
 - `npm audit fix` (sin `--force`) corrige todo salvo la cadena de `braces`.
 - La cadena de `braces` exige `tailwindcss@4`, que es una versión mayor con cambios incompatibles. Como afecta solo al build, la opción razonable para el viernes es **aceptar y documentar el riesgo** en la memoria en vez de migrar a Tailwind 4.
 
-### 2.3 Estado tras la corrección (bloque 2)
+### 2.3 Estado tras la corrección (bloque 2, commit `54365a5`)
 
 Cambios aplicados: `python-multipart==0.0.31` en `backend/requirements.txt` y `npm audit fix` **sin `--force`** en `frontend/`, que solo modificó `package-lock.json`. Después se ejecutó `npm run build` y terminó correctamente.
 
@@ -159,45 +163,47 @@ Se corrigieron `axios`, `form-data`, `vite`, `postcss`, `browserslist`, `nanoid`
 
 **Cómo se han obtenido:** el informe P1 no numera requisitos. Cada uno de abajo cita su origen (apartado del informe P1, «Código» si solo existe en la implementación, o ambos). Los estados siguen el apartado 3 del enunciado: Cumplido / Parcial / Pendiente / A revisar / Descartado. La columna «Observaciones» recoge lo que habría que demostrar o corregir.
 
+**Estado actualizado** tras los commits del apartado 7. Cuando un estado ha cambiado se indica como «antes → ahora (commit)». La columna «Test» señala el fichero de `backend/tests/` que lo verifica. «—» significa que el requisito no es verificable desde el código del backend (frontend o infraestructura) y se demuestra en el vídeo.
+
 ### 3.1 Requisitos funcionales
 
-| ID | Requisito | Origen | Estado | Implementación | Observaciones |
-|----|-----------|--------|--------|----------------|---------------|
-| RF-01 | Analizar una URL sospechosa y devolver score, veredicto, indicadores y explicación | P1 §3, §5.3, §8.1 | Cumplido | `backend/app/routers/analyze.py` (`POST /api/analyze/url`), `frontend/src/components/URLAnalyzer.jsx` | — |
-| RF-02 | Analizar el texto de un email (solo el cuerpo o el correo completo con cabeceras), con un mínimo de 10 caracteres | P1 §8.2 | Cumplido | `analyze.py` (`POST /api/analyze/email`), `frontend/src/components/EmailAnalyzer.jsx` | Validación doble: en el frontend y con Pydantic (`min_length=10`). |
-| RF-03 | Extraer 15 características de la URL: longitud, subdominios, palabras clave, caracteres sospechosos, TLD inusual, HTTPS, IP como host, edad WHOIS y `young_domain` | P1 §5.3, §6.3 | Cumplido | `backend/app/services/url_extractor.py` | Son exactamente 15 claves. Si WHOIS falla, `domain_age_days = None` y el análisis sigue (P1 §6.8). |
-| RF-04 | Extraer señales del email: remitente, reply-to distinto del remitente, URLs, frases sospechosas en español e inglés, adjuntos | Código (P1 §8.2 solo lo menciona de pasada) | Cumplido | `backend/app/services/email_extractor.py` | — |
-| RF-05 | Consultar la reputación de la URL en VirusTotal (API v3) | P1 §5.2, §6.4 | Cumplido | `backend/app/services/virustotal.py` | En emails solo se consulta la **primera** URL (`analyze.py:207-210`). Si la URL no existe en VT, se envía a analizar y se devuelve un resultado neutro. |
-| RF-06 | Consultar URLScan.io como contexto adicional | P1 §5.2, §6.4 | Cumplido | `backend/app/services/urlscan.py` | Solo busca informes históricos del dominio; no lanza un escaneo nuevo. El resultado va a Claude pero **no se muestra en la UI**. `render.yaml` no declara `URLSCAN_API_KEY`. |
-| RF-07 | Veredicto con IA (Claude): JSON estricto con score 0-100, veredicto PHISHING / SOSPECHOSO / LEGÍTIMO, indicadores con severidad y explicación en español, con parseo defensivo y normalización | P1 §5.2, §6.3 | Cumplido | `backend/app/services/claude_analyzer.py` | El modelo por defecto del código (`claude-sonnet-4-5-20250929`) no coincide con el de `.env.example` y `render.yaml` (`claude-sonnet-4-6`). |
-| RF-08 | Motor heurístico de respaldo cuando no hay IA (sin clave, cuota agotada, error o respuesta no válida) | P1 §5.3 paso 6, §6.3 | **Parcial** | `claude_analyzer.py` → `_fallback_response()` | **Fallo:** las reglas solo leen señales de URL (`young_domain`, `tld`, `uses_https`…). Para un email ninguna se activa, así que el resultado es siempre **score 10 → LEGÍTIMO, sin indicadores**. Con la cuota por defecto (20 llamadas al día) es fácil que ocurra en la demo. |
-| RF-09 | Tolerancia a fallos: si VirusTotal, URLScan o WHOIS fallan o no están configurados, el análisis continúa | P1 §5.2, README | Cumplido | `virustotal.py`, `urlscan.py`, `url_extractor.py` (`try/except` con resultado neutro) | Hay que demostrarlo, por ejemplo con una clave inválida o sin clave. |
-| RF-10 | Guardar cada análisis en la base de datos (SQLite con SQLAlchemy) | P1 §5.2, §5.3 paso 7 | **Parcial** | `backend/app/database.py`, `backend/app/models/analysis.py`, `analyze.py::_persist_analysis` | Funciona en local con el volumen de Docker. **En producción** (Render, `sqlite:////tmp/…`) se pierde en cada reinicio o arranque en frío: el 14/10 `GET /api/history` en producción devolvía `total=0`. |
-| RF-11 | Historial paginado y filtrable por veredicto (Todos / PHISHING / SOSPECHOSO / LEGÍTIMO) | P1 §8.5 | Cumplido | `backend/app/routers/history.py` (`GET /api/history`), `frontend/src/pages/History.jsx`, `frontend/src/components/HistoryTable.jsx` | Fallo menor: `History.jsx:71` pasa `totalCount={items.length}`, que es el número de filas de la página, no el total. |
-| RF-12 | Dashboard web con estadísticas: total analizado, phishing detectados, % de detección, score medio y cuota de IA | P1 §3; requisito obligatorio 01 del enunciado P1 | Cumplido | `history.py` (`GET /api/stats`), `frontend/src/pages/Dashboard.jsx` | — |
-| RF-13 | Medidor visual 0-100 con colores verde (0-30), ámbar (31-60) y rojo (61-100) | P1 §5.2, §8.4 | Cumplido | `frontend/src/components/ScoreGauge.jsx`, `ResultCard.jsx` | El color depende del **veredicto**, no del rango del score. Si Claude devuelve un veredicto incoherente con el score, el color no sigue la tabla de P1 §8.4. |
-| RF-14 | Las URLs con veredicto PHISHING no se muestran como enlace clicable (aparecen tachadas y marcadas como bloqueadas) | P1 §6.6, §8.5 | Cumplido | `frontend/src/components/ResultCard.jsx:79-97`, `HistoryTable.jsx:~104` | Las URLs con veredicto **SOSPECHOSO** sí son clicables (`<a href>`). Decide si es lo que quieres. |
-| RF-15 | API REST documentada de forma interactiva (`/docs`) | P1 §5.4, §7 paso 4 | Cumplido | `backend/app/main.py` (FastAPI por defecto) | En producción está expuesta públicamente (ver RNF-09). |
+| ID | Requisito | Origen | Estado | Implementación | Test | Observaciones |
+|----|-----------|--------|--------|----------------|------|---------------|
+| RF-01 | Analizar una URL sospechosa y devolver score, veredicto, indicadores y explicación | P1 §3, §5.3, §8.1 | Cumplido | `backend/app/routers/analyze.py` (`POST /api/analyze/url`), `frontend/src/components/URLAnalyzer.jsx` | `test_analysis_url.py` | La respuesta incluye ahora `analysis_mode` y `analysis_label` (`76faa4e`). |
+| RF-02 | Analizar el texto de un email (solo el cuerpo o el correo completo con cabeceras), con un mínimo de 10 caracteres | P1 §8.2 | Cumplido | `analyze.py` (`POST /api/analyze/email`), `frontend/src/components/EmailAnalyzer.jsx` | `test_analysis_email.py` | Validación doble: en el frontend y con Pydantic (`min_length=10`). |
+| RF-03 | Extraer 15 características de la URL: longitud, subdominios, palabras clave, caracteres sospechosos, TLD inusual, HTTPS, IP como host, edad WHOIS y `young_domain` | P1 §5.3, §6.3 | Cumplido | `backend/app/services/url_extractor.py` | `test_analysis_url.py` | Son exactamente 15 claves. Si WHOIS falla, `domain_age_days = None` y el análisis sigue (P1 §6.8). **Corregido en `796b8d6`:** los TLD que no están en la Public Suffix List se marcan como inusuales (antes `tld` quedaba vacío). |
+| RF-04 | Extraer señales del email: remitente, reply-to distinto del remitente, URLs, frases sospechosas en español e inglés, adjuntos | Código (P1 §8.2 solo lo menciona de pasada) | Cumplido | `backend/app/services/email_extractor.py`, `domain_utils.py` | `test_analysis_email.py` | **Ampliado en `76faa4e`:** se analizan las cabeceras antes de quitar el HTML. Se detectan: lenguaje de urgencia y amenaza; peticiones de credenciales y de pago; remitente visible frente a dominio real; Reply-To distinto; texto del enlace frente a destino; extensiones de adjunto peligrosas. |
+| RF-05 | Consultar la reputación de la URL en VirusTotal (API v3) | P1 §5.2, §6.4 | Cumplido | `backend/app/services/virustotal.py` | `test_analysis_url.py` | En emails solo se consulta la **primera** URL. Si la URL no existe en VT, se envía a analizar y se devuelve un resultado neutro. |
+| RF-06 | Consultar URLScan.io como contexto adicional | P1 §5.2, §6.4 | Cumplido | `backend/app/services/urlscan.py` | `test_analysis_url.py` | Solo busca informes históricos del dominio; no lanza un escaneo nuevo. El resultado va a Claude pero **no se muestra en la UI**. `URLSCAN_API_KEY` añadida a `render.yaml` en `0d1d385`. |
+| RF-07 | Veredicto con IA (Claude): JSON estricto con score 0-100, veredicto PHISHING / SOSPECHOSO / LEGÍTIMO, indicadores con severidad y explicación en español, con parseo defensivo y normalización | P1 §5.2, §6.3 | Cumplido | `backend/app/services/claude_analyzer.py` | `test_ai_and_quota.py` (SDK simulado) | El modelo por defecto del código (`claude-sonnet-4-5-20250929`) no coincide con el de `.env.example` y `render.yaml` (`claude-sonnet-4-6`). |
+| RF-08 | Motor heurístico de respaldo cuando no hay IA (sin clave, cuota agotada, error o respuesta no válida) | P1 §5.3 paso 6, §6.3 | Parcial → **Cumplido** (`76faa4e`) | `claude_analyzer.py` (`_url_rules`, `_email_rules`, `_fallback_verdict`), `ResultCard.jsx`, `ScoreGauge.jsx`, `HistoryTable.jsx` | `test_analysis_email.py`, `test_external_failures.py` | Reglas propias para email y URL, más la señal de VirusTotal. En modo sin IA la interfaz muestra «Análisis limitado (sin IA)» y nunca da `LEGÍTIMO`: sin señales suficientes devuelve **`NO CONCLUYENTE`**. El email de phishing de prueba sale PHISHING 100. |
+| RF-09 | Tolerancia a fallos: si VirusTotal, URLScan o WHOIS fallan o no están configurados, el análisis continúa | P1 §5.2, README | Cumplido | `virustotal.py`, `urlscan.py`, `url_extractor.py` (`try/except` con resultado neutro) | `test_external_failures.py` | **Demostrado con tests (`796b8d6`):** conexión rechazada, timeout, HTTP 500 y 429, JSON no válido, Anthropic caído y WHOIS caído, por separado y todos a la vez. En todos los casos la respuesta es 200 y no se filtran detalles del error. |
+| RF-10 | Guardar cada análisis en la base de datos (SQLite con SQLAlchemy) | P1 §5.2, §5.3 paso 7 | **Parcial** | `backend/app/database.py`, `backend/app/models/analysis.py`, `analyze.py::_persist_analysis` | `test_history.py` | **Minimizado en `0d1d385`:** solo se guardan tipo, veredicto, score, modo, fecha, dominio y una huella SHA-256 del contenido. Las bases de datos antiguas se migran y se purgan al arrancar. Sigue Parcial porque **en producción** (Render, `sqlite:////tmp/…`) los datos se pierden en cada reinicio; está documentado en el README. |
+| RF-11 | Historial paginado y filtrable por veredicto (Todos / PHISHING / SOSPECHOSO / LEGÍTIMO) | P1 §8.5 | Cumplido | `backend/app/routers/history.py` (`GET /api/history`), `frontend/src/pages/History.jsx`, `frontend/src/components/HistoryTable.jsx` | `test_history.py` | **Desde `0d1d385`** requiere `ADMIN_TOKEN` y el contador muestra el total real. El filtro incluye `NO CONCLUYENTE`. |
+| RF-12 | Dashboard web con estadísticas: total analizado, phishing detectados, % de detección, score medio y cuota de IA | P1 §3; requisito obligatorio 01 del enunciado P1 | Cumplido | `history.py` (`GET /api/stats`), `frontend/src/pages/Dashboard.jsx` | `test_history.py` | `/api/stats` sigue siendo público (solo da agregados) y tiene rate limit desde `e7fa375`. |
+| RF-13 | Medidor visual 0-100 con colores verde (0-30), ámbar (31-60) y rojo (61-100) | P1 §5.2, §8.4 | Cumplido | `frontend/src/components/ScoreGauge.jsx`, `ResultCard.jsx` | — (frontend) | El color depende del **veredicto**, no del rango del score. `NO CONCLUYENTE` se muestra en gris. |
+| RF-14 | Las URLs con veredicto PHISHING no se muestran como enlace clicable (aparecen tachadas y marcadas como bloqueadas) | P1 §6.6, §8.5 | Cumplido | `frontend/src/components/ResultCard.jsx` | — (frontend) | Las URLs con veredicto **SOSPECHOSO** sí son clicables (`<a href>`). El historial ya no muestra URLs, solo el dominio. |
+| RF-15 | API REST documentada de forma interactiva (`/docs`) | P1 §5.4, §7 paso 4 | Cumplido | `backend/app/main.py` (FastAPI por defecto) | `test_platform.py` | En producción está expuesta públicamente (ver RNF-09). |
 
 ### 3.2 Requisitos no funcionales
 
-| ID | Requisito | Origen | Estado | Implementación | Observaciones |
-|----|-----------|--------|--------|----------------|---------------|
-| RNF-01 | Rate limiting por IP: 10/min en los análisis y 30/min en el historial; respuesta 429 con `Retry-After` | P1 §6.6 | **Parcial** | `backend/app/services/rate_limit.py`, `main.py`, decoradores en los routers | (a) La IP se lee de `X-Forwarded-For` **sin validar el proxy**, así que cualquier cliente se lo salta enviando una IP inventada en cada petición. (b) `GET /api/stats` no tiene límite. (c) Los contadores están en memoria: no se comparten entre workers y se pierden al reiniciar. |
-| RNF-02 | Cabeceras de seguridad HTTP (OWASP Secure Headers): CSP, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy y HSTS cuando la petición es HTTPS | P1 §6.6 | Cumplido (backend) | `backend/app/middleware/security_headers.py` | El frontend (nginx en Docker o Cloudflare Pages) no añade cabeceras ni CSP. |
-| RNF-03 | Protección anti-SSRF: solo `http(s)`, bloqueo de localhost, IPs privadas, loopback, link-local, multicast, reservadas y metadata de cloud, con resolución DNS de cada IP | P1 §5.3 paso 2, §6.6 | Cumplido | `backend/app/services/url_validator.py` | Se demuestra con `scripts/security_e2e.ps1`, pasos 3 a 6. |
-| RNF-04 | Validación y saneado de entradas: límites de longitud, eliminación de HTML/JS/CSS y caracteres de control, cuerpo máximo de 1 MB (413), solo `application/json` (415) y timeout de 30 s (504) | P1 §5.2; código | Cumplido | `backend/app/services/text_sanitizer.py`, `backend/app/middleware/request_guards.py`, esquemas Pydantic en `analyze.py` | El timeout **no puede cortar** la llamada a Claude ni la consulta WHOIS: son síncronas dentro de funciones `async` y bloquean el event loop (ver H-04). |
-| RNF-05 | El contenedor del backend se ejecuta sin privilegios (`appuser`, UID 10001) | P1 §6.6 | Cumplido | `backend/Dockerfile` | Se demuestra con `docker exec phishguard-backend id`. |
-| RNF-06 | Logs de auditoría en JSON (`phishguard.audit`) sin cuerpos ni claves de API | P1 §6.6 | Cumplido | `backend/app/middleware/audit_log.py` | Registran la IP y el User-Agent truncado, que son datos personales: menciónalo en el apartado de datos personales. |
-| RNF-07 | Cuotas configurables de llamadas a Anthropic (por hora y por día), con el contador guardado en la base de datos | P1 §6.6 | **Parcial** | `backend/app/services/anthropic_rate_limit.py`, `backend/app/models/anthropic_usage.py` | (a) En Render el contador se reinicia con la base de datos de `/tmp`, aunque el docstring dice que sobrevive a los reinicios. (b) La comprobación y el registro no son atómicos: peticiones simultáneas pueden pasarse un poco del límite. |
-| RNF-08 | Gestión de secretos: las claves solo están en `.env` o en los paneles de Render y Cloudflare, nunca en el repositorio | P1 §6.7; README | Cumplido | `.gitignore`, `.env.example`, `render.yaml` (`sync: false`) | Verificado en el apartado 1 de este informe. |
-| RNF-09 | Errores genéricos, sin trazas ni detalles internos para el usuario | P1 (SECURITY.md histórico); `frontend/src/api.js` | **Parcial** | `frontend/src/api.js::friendlyError`, `analyze.py` | El frontend los oculta bien, pero la API devuelve el nombre de la clase de la excepción en los 500 (`analyze.py:176` y `:240`). `/docs` y `/openapi.json` son públicos en producción. |
-| RNF-10 | Entorno reproducible con Docker Compose: 2 servicios, volumen persistente y variables desde `.env` | P1 §5.4, §6.2, §7 | **Parcial** | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile` | `frontend/Dockerfile` copia solo `package.json` y ejecuta `npm install`, **ignorando `package-lock.json`**: el build no es reproducible e instala las versiones vulnerables que se resuelvan ese día. El backend no fija las dependencias transitivas. Compose no define healthchecks. **Falta una instalación desde cero hecha por otra persona.** |
-| RNF-11 | Despliegue accesible en Internet con HTTPS y dominio propio (Cloudflare Pages + Render) | P1 §3, §6.7, §7 pasos 6-9 | **Parcial** | `render.yaml`, `frontend/.env.production`; configuración en los paneles | El 14/10 `https://phishguard.cmmario.com` respondía 200 y el backend también. Se marca Parcial porque los datos no persisten (RF-10, RNF-07) y por el arranque en frío del plan gratuito. Ver también D-01 (Hetzner). |
-| RNF-12 | Configuración por variables de entorno: modelo, límites de cuota, CORS, URL del backend y base de datos | P1 §9.2; README | Cumplido | `.env.example`, `backend/app/cors_config.py`, `database.py` | Si `ALLOWED_ORIGINS` no está definido, el código usa `"*"` junto con `allow_credentials=True` (`cors_config.py:34`). Compose lo evita con un valor por defecto, pero el valor por defecto del código es inseguro. |
-| RNF-13 | Interfaz y resultados en español | P1 §3, §8 | Cumplido | Todo `frontend/src`, prompt de `claude_analyzer.py` | — |
+| ID | Requisito | Origen | Estado | Implementación | Test | Observaciones |
+|----|-----------|--------|--------|----------------|------|---------------|
+| RNF-01 | Rate limiting por IP: 10/min en los análisis y 30/min en el historial; respuesta 429 con `Retry-After` | P1 §6.6 | Parcial → **Cumplido** (`e7fa375`) | `backend/app/services/client_ip.py`, `rate_limit.py`, `main.py`, decoradores en los routers | `test_rate_limit.py` | (a) **Resuelto:** la IP es la del socket, salvo con `TRUSTED_PROXY_HOPS` > 0, en cuyo caso se toma la entrada que añade el proxy (en Render, la última). Los `X-Forwarded-For` falsos ya no evitan el 429, con o sin proxy. (b) **Resuelto:** `/api/stats` tiene límite, y los tres límites se configuran con `RATE_LIMIT_*`. (c) Sigue igual: contadores en memoria, aceptable con un único worker y documentado en el README. |
+| RNF-02 | Cabeceras de seguridad HTTP (OWASP Secure Headers): CSP, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy y HSTS cuando la petición es HTTPS | P1 §6.6 | Cumplido (backend) | `backend/app/middleware/security_headers.py` | `test_security.py` | Comprobado también en las respuestas 401, 404 y 400. El frontend (nginx en Docker o Cloudflare Pages) no añade cabeceras ni CSP. |
+| RNF-03 | Protección anti-SSRF: solo `http(s)`, bloqueo de localhost, IPs privadas, loopback, link-local, multicast, reservadas y metadata de cloud, con resolución DNS de cada IP | P1 §5.3 paso 2, §6.6 | Cumplido | `backend/app/services/url_validator.py` | `test_security.py` | 13 destinos internos, un dominio que resuelve a una IP privada y 6 esquemas no válidos. Se comprueba que no se llama a VirusTotal en esos casos. |
+| RNF-04 | Validación y saneado de entradas: límites de longitud, eliminación de HTML/JS/CSS y caracteres de control, cuerpo máximo de 1 MB (413), solo `application/json` (415) y timeout de 30 s (504) | P1 §5.2; código | Cumplido | `backend/app/services/text_sanitizer.py`, `backend/app/middleware/request_guards.py`, esquemas Pydantic en `analyze.py` | `test_security.py` | El timeout **no puede cortar** la llamada a Claude ni la consulta WHOIS (H-04, abierto). El timeout de 504 no tiene test. |
+| RNF-05 | El contenedor del backend se ejecuta sin privilegios (`appuser`, UID 10001) | P1 §6.6 | Cumplido | `backend/Dockerfile` | `test_platform.py` (estático) | Se demuestra con `docker exec phishguard-backend id`. |
+| RNF-06 | Logs de auditoría en JSON (`phishguard.audit`) sin cuerpos ni claves de API | P1 §6.6 | Cumplido | `backend/app/middleware/audit_log.py` | `test_platform.py`, `test_history.py` | **Desde `0d1d385`** registra los accesos fallidos al historial (`event=admin_auth_failed`, `reason`) sin el token. **Desde `e7fa375`** la IP registrada no es falsificable. Siguen registrando la IP y el User-Agent truncado, que son datos personales. |
+| RNF-07 | Cuotas configurables de llamadas a Anthropic (por hora y por día), con el contador guardado en la base de datos | P1 §6.6 | **Parcial** | `backend/app/services/anthropic_rate_limit.py`, `backend/app/models/anthropic_usage.py` | `test_ai_and_quota.py` | (b) **Resuelto en `e7fa375`:** comprobar y registrar se hacen bajo un lock, y los límites se leen en cada llamada. (a) Sigue Parcial: en Render el contador se reinicia con la base de datos de `/tmp`. Está documentado en el README. |
+| RNF-08 | Gestión de secretos: las claves solo están en `.env` o en los paneles de Render y Cloudflare, nunca en el repositorio | P1 §6.7; README | Cumplido | `.gitignore`, `.env.example`, `render.yaml` (`sync: false`) | — (apartado 1) | Verificado en el apartado 1. `ADMIN_TOKEN` está vacío en `.env.example` (fail closed) y con `sync: false` en `render.yaml`. |
+| RNF-09 | Errores genéricos, sin trazas ni detalles internos para el usuario | P1 (SECURITY.md histórico); `frontend/src/api.js` | **Parcial** | `frontend/src/api.js::friendlyError`, `analyze.py`, `admin_auth.py` | `test_security.py`, `test_external_failures.py` | **Resuelto en `796b8d6`:** los 500 ya no exponen el nombre de la excepción. **En `76faa4e`:** el motivo del modo sin IA es genérico. El 401 del historial es idéntico para todos los motivos. Sigue Parcial: `/docs` y `/openapi.json` son públicos en producción. |
+| RNF-10 | Entorno reproducible con Docker Compose: 2 servicios, volumen persistente y variables desde `.env` | P1 §5.4, §6.2, §7 | **Parcial** | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `README.md` | — | **En `9f3cebd`** se documentó la instalación desde cero paso a paso, y el comando de tests del README se verificó sobre una imagen limpia. Siguen abiertos: `frontend/Dockerfile` ignora `package-lock.json` (H-09), no hay healthchecks y **falta una instalación hecha por otra persona**. |
+| RNF-11 | Despliegue accesible en Internet con HTTPS y dominio propio (Cloudflare Pages + Render) | P1 §3, §6.7, §7 pasos 6-9 | **Parcial** | `render.yaml`, `frontend/.env.production`; configuración en los paneles | — | Sin cambios: los datos no persisten y el plan gratuito tiene arranque en frío. Las limitaciones están documentadas en el README (`9f3cebd`). **Hay que definir `ADMIN_TOKEN` y `TRUSTED_PROXY_HOPS=1` en el panel de Render** antes de la demo. Ver también D-01. |
+| RNF-12 | Configuración por variables de entorno: modelo, límites de cuota, CORS, URL del backend y base de datos | P1 §9.2; README | Cumplido | `.env.example`, `backend/app/cors_config.py`, `database.py`, `rate_limit.py`, `client_ip.py` | `test_platform.py`, `test_ai_and_quota.py`, `test_rate_limit.py` | Nuevas en `0d1d385` y `e7fa375`: `ADMIN_TOKEN`, `RATE_LIMIT_*`, `TRUSTED_PROXY_HOPS` y `TRUSTED_PROXY_CIDRS`. Sigue pendiente H-08: el valor por defecto de CORS en código es `"*"`. |
+| RNF-13 | Interfaz y resultados en español | P1 §3, §8 | Cumplido | Todo `frontend/src`, prompt de `claude_analyzer.py` | — (frontend) | — |
 
-**Recuento:** RF: 13 Cumplidos y 2 Parciales. RNF: 8 Cumplidos y 5 Parciales. Ningún Pendiente.
+**Recuento actual:** RF: 14 Cumplidos y 1 Parcial (RF-10). RNF: 9 Cumplidos y 4 Parciales (RNF-07, RNF-09, RNF-10 y RNF-11). Ningún Pendiente. Antes de las correcciones eran RF 13/2 y RNF 8/5.
 
 ### 3.3 Requisitos dudosos (decidir antes de la memoria)
 
@@ -210,7 +216,7 @@ Estos elementos aparecen en el material de la P1 pero **no está claro que sean 
 | D-03 | Extensión de Chrome | Roadmap P2 §10.2 nº 2 | Descartado o trabajo futuro | Igual que D-02. |
 | D-04 | Análisis masivo desde CSV con informe en PDF | Roadmap P2 §10.2 nº 3 | Descartado o trabajo futuro | Igual que D-02. |
 | D-05 | Alertas a Slack o Teams | Roadmap P2 §10.2 nº 4 | Descartado o trabajo futuro | Igual que D-02. |
-| D-06 | Usuarios con inicio de sesión (JWT) e historial privado | Roadmap P2 §10.2 nº 5 | **A revisar** | El enunciado de la P3 pregunta expresamente cómo se autentica a los usuarios. Hoy no hay autenticación y `/api/history` es público (ver H-01). Como mínimo hay que justificarlo; lo ideal es proteger el historial. |
+| D-06 | Usuarios con inicio de sesión (JWT) e historial privado | Roadmap P2 §10.2 nº 5 | **A revisar** | El enunciado de la P3 pregunta expresamente cómo se autentica a los usuarios. **Desde `0d1d385`** el historial se protege con `ADMIN_TOKEN` y ya no contiene contenido analizado. Sigue sin haber usuarios, y en la memoria hay que justificar por qué basta con un único token de administrador. |
 | D-07 | Caché Redis para URLs ya analizadas | Roadmap P2 §10.3 | Descartado o trabajo futuro | — |
 | D-08 | Panel de auditoría con peticiones bloqueadas | Roadmap P2 §10.4 | Descartado o trabajo futuro | — |
 | D-09 | Google Safe Browsing como cuarta fuente | Roadmap P2 §10.5 | Descartado o trabajo futuro | — |
@@ -219,6 +225,21 @@ Estos elementos aparecen en el material de la P1 pero **no está claro que sean 
 ---
 
 ## 4. Huecos frente al enunciado (apartado 7 y lista de comprobación del apartado 14)
+
+Estado actual de cada hueco:
+
+| Elemento | Ahora |
+|----------|-------|
+| `README.md` | **Resuelto en `9f3cebd`**, salvo la instalación por otra persona en una máquina limpia, que sigue pendiente. Añadidos: instalación desde cero, variables, uso, tests, credenciales («No aplica…»), URL de despliegue y limitaciones. Los enlaces a `LICENSE` y `SECURITY.md` funcionan desde `0d1b429`. |
+| `.env.example` | `ADMIN_TOKEN`, `RATE_LIMIT_*` y `TRUSTED_PROXY_*` añadidos (`0d1d385`, `e7fa375`). Sigue faltando `LOG_LEVEL`. |
+| `.gitignore` | Ya no ignora `SECURITY.md` (`0d1b429`). Las demás sugerencias siguen pendientes. |
+| Licencia | **Resuelto en `0d1b429`** (MIT). |
+| `Dockerfile` y `docker-compose.yml` | uvicorn arranca con `--no-proxy-headers` (`e7fa375`) y `render.yaml` declara `URLSCAN_API_KEY` y `ADMIN_TOKEN` (`0d1d385`). Siguen pendientes `npm ci` en el frontend (H-09) y los healthchecks. |
+| Pruebas automatizadas | **Resuelto en `796b8d6`**: 101 tests con pytest en `backend/tests/`; salida en [`docs/evidencias/pytest.txt`](evidencias/pytest.txt). No hay tests de frontend ni CI. |
+| Etiqueta `v1.0-practica3` | **Pendiente a propósito:** en esta tanda se pidió no crear tags. |
+| Documento de seguridad | `SECURITY.md` versionado (`0d1b429`, ampliado en `0d1d385`). El STRIDE completo sigue pendiente para la memoria. |
+
+Diagnóstico original:
 
 | Elemento | ¿Existe? | Estado | Qué falta |
 |----------|----------|--------|-----------|
@@ -238,6 +259,25 @@ Estos elementos aparecen en el material de la P1 pero **no está claro que sean 
 ## 5. Otros hallazgos técnicos (seguridad y calidad)
 
 Estos fallos afectan a los criterios «Seguridad y calidad técnica» (15 %) y «Producto funcional» (30 %).
+
+**Estado actual:**
+
+| ID | Estado | Commit | Qué se hizo |
+|----|--------|--------|-------------|
+| H-01 | **Resuelto** | `0d1d385` | `/api/history` exige `Authorization: Bearer <ADMIN_TOKEN>`, comparado en tiempo constante. Sin token, con un token incorrecto o sin token configurado en el servidor responde un 401 genérico, y el intento queda en el log de auditoría. La base de datos solo guarda tipo, veredicto, score, modo, fecha, dominio y una huella SHA-256; el texto, la URL completa, la explicación y los indicadores ya no se guardan. Las bases de datos antiguas se migran y se purgan (`VACUUM`). El frontend pide el token y lo guarda solo en memoria. |
+| H-02 | **Resuelto** | `76faa4e` | Motor heurístico con reglas de email y URL. En modo sin IA se muestra «Análisis limitado (sin IA)» y, en vez de `LEGÍTIMO`, el veredicto es `NO CONCLUYENTE`. Cubierto por `test_analysis_email.py`. |
+| H-03 | **Resuelto** | `e7fa375` | `get_client_ip` común para slowapi y auditoría. `TRUSTED_PROXY_HOPS` (0 en local, 1 en Render) y `TRUSTED_PROXY_CIDRS` opcional. uvicorn arranca con `--no-proxy-headers`. Cubierto por `test_rate_limit.py`. |
+| H-04 | Abierto | — | Documentado como limitación en el README (`9f3cebd`). |
+| H-05 | Abierto | — | El prompt-injection por email sigue sin mitigar. Desde `76faa4e` el contenido que llega al prompt está saneado (sin HTML), pero va sin delimitar. |
+| H-06 | Abierto (documentado) | `9f3cebd` | Limitación del disco efímero explicada en el README. |
+| H-07 | **Parcial** | `76faa4e`, `796b8d6` | Los 500 y los motivos del modo sin IA son genéricos. `/docs` sigue siendo público en producción. |
+| H-08 | Abierto | — | — |
+| H-09 | Abierto | — | — |
+| H-10 | Abierto | — | En el historial ya no se muestran URLs, pero en `ResultCard` las URLs SOSPECHOSO siguen siendo clicables. |
+| H-11 | **Parcial** | `0d1d385` | Corregido el `totalCount` del historial (estaba en RF-11). Siguen pendientes «/72 motores», el modelo por defecto y `utcnow()`. |
+| Nuevo | **Resuelto** | `796b8d6` | Encontrado por los tests: `url_extractor` no detectaba como inusuales los TLD que no están en la Public Suffix List. |
+
+Diagnóstico original:
 
 | ID | Severidad | Hallazgo | Ubicación | Corrección propuesta |
 |----|-----------|----------|-----------|----------------------|
@@ -264,22 +304,22 @@ Faltan unos 2 días (hoy es miércoles 14/10 y se entrega el viernes 16/10). El 
 | # | Tarea | Relación | Estimación |
 |---|-------|----------|------------|
 | 1 | Pedir o localizar la **calificación y el feedback de la P1** y revisar si cambia el estado de algún requisito. | Enunciado §3 y memoria §3 | 15 min |
-| 2 | Añadir **`LICENSE` (MIT)**. El repo es público y el README ya lo anuncia. | Apdo. 4 | 5 min |
-| 3 | **Corregir el motor heurístico para emails** (H-02 / RF-08). | Producto funcional | 45 min |
-| 4 | **Actualizar dependencias:** `python-multipart==0.0.31` y `npm audit fix` sin `--force`. Volver a ejecutar ambas auditorías y guardar las salidas como `docs/evidencias/*-post.txt`. Documentar en la memoria el riesgo aceptado de `braces` / `tailwindcss@3`. | Apdo. 2, RNF-08 | 45 min (con prueba de build) |
-| 5 | **Pruebas automatizadas mínimas con pytest** en `backend/tests/`: `url_validator` (SSRF), `text_sanitizer`, `email_extractor`, `url_extractor` (sin red), el motor heurístico de URL y email, y los endpoints con `TestClient`, simulando Claude, VirusTotal y URLScan (200, 400 por SSRF, 413, 415, 422, 429 y filtros del historial). Añadir `pytest` y `httpx` como dependencias de desarrollo. | Apdo. 4, memoria §8 | 3-4 h |
-| 6 | **Decidir y aplicar una mitigación para H-01** (no exponer el texto de los emails en `/api/history`, o protegerlo) y documentar el tratamiento de datos personales. | Seguridad, D-06 | 1 h |
-| 7 | **Completar el README:** sección de pruebas, uso básico, «credenciales de prueba: no aplica», arreglar los enlaces a `LICENSE` y `SECURITY.md`, y explicar el modo sin clave de Anthropic. | Apdo. 4 | 45 min |
+| 2 | **Hecho (`0d1b429`).** Añadir **`LICENSE` (MIT)**. El repo es público y el README ya lo anuncia. | Apdo. 4 | 5 min |
+| 3 | **Hecho (`76faa4e`).** **Corregir el motor heurístico para emails** (H-02 / RF-08). | Producto funcional | 45 min |
+| 4 | **Hecho (`54365a5`; las salidas están en `*-despues.txt`).** **Actualizar dependencias:** `python-multipart==0.0.31` y `npm audit fix` sin `--force`. Volver a ejecutar ambas auditorías y guardar las salidas como `docs/evidencias/*-post.txt`. Documentar en la memoria el riesgo aceptado de `braces` / `tailwindcss@3`. | Apdo. 2, RNF-08 | 45 min (con prueba de build) |
+| 5 | **Hecho (`796b8d6`, 101 tests).** **Pruebas automatizadas mínimas con pytest** en `backend/tests/`: `url_validator` (SSRF), `text_sanitizer`, `email_extractor`, `url_extractor` (sin red), el motor heurístico de URL y email, y los endpoints con `TestClient`, simulando Claude, VirusTotal y URLScan (200, 400 por SSRF, 413, 415, 422, 429 y filtros del historial). Añadir `pytest` y `httpx` como dependencias de desarrollo. | Apdo. 4, memoria §8 | 3-4 h |
+| 6 | **Hecho (`0d1d385`: token y minimización).** **Decidir y aplicar una mitigación para H-01** (no exponer el texto de los emails en `/api/history`, o protegerlo) y documentar el tratamiento de datos personales. | Seguridad, D-06 | 1 h |
+| 7 | **Hecho (`9f3cebd`).** **Completar el README:** sección de pruebas, uso básico, «credenciales de prueba: no aplica», arreglar los enlaces a `LICENSE` y `SECURITY.md`, y explicar el modo sin clave de Anthropic. | Apdo. 4 | 45 min |
 | 8 | **Que otra persona instale el proyecto desde cero** en una máquina o VM limpia siguiendo solo el README, y anotar las incidencias. | Lista §14 | 1 h |
 
 ### P1: alto impacto en la nota (hoy o mañana por la mañana)
 
 | # | Tarea | Relación | Estimación |
 |---|-------|----------|------------|
-| 9 | Arreglar la confianza en `X-Forwarded-For` (H-03 / RNF-01) y poner rate limit a `/api/stats`. | RNF-01 | 45 min |
+| 9 | **Hecho (`e7fa375`).** Arreglar la confianza en `X-Forwarded-For` (H-03 / RNF-01) y poner rate limit a `/api/stats`. | RNF-01 | 45 min |
 | 10 | Sacar la llamada a Claude y la consulta WHOIS del event loop (H-04). | RNF-04, rendimiento | 30 min |
 | 11 | Mitigar la inyección de prompt (H-05) y añadir un caso de prueba con un email que intente manipular al modelo. | Seguridad | 1 h |
-| 12 | Errores 500 genéricos y `/docs` desactivado en producción (H-07). Valor por defecto seguro de CORS (H-08). | RNF-09, RNF-12 | 30 min |
+| 12 | **Parcial (`796b8d6`: errores 500 genéricos; faltan `/docs` y CORS).** Errores 500 genéricos y `/docs` desactivado en producción (H-07). Valor por defecto seguro de CORS (H-08). | RNF-09, RNF-12 | 30 min |
 | 13 | Decidir la persistencia en producción (H-06): disco o BD gestionada, o documentar la limitación y hacer la demo en local. | RF-10, RNF-11 | 30 min – 2 h |
 | 14 | Documento de seguridad versionado (`docs/seguridad.md` o `SECURITY.md` sin datos personales) con modelo STRIDE, secretos, entradas, dependencias y datos personales. Es la base del apartado 7 de la memoria. | Memoria §7 | 1,5 h |
 | 15 | Justificar por escrito D-01 (Hetzner → Render/Cloudflare) y los elementos del roadmap (D-02 a D-09), y corregir D-10. | Memoria §3-4 | 45 min |
@@ -289,10 +329,10 @@ Faltan unos 2 días (hoy es miércoles 14/10 y se entrega el viernes 16/10). El 
 
 | # | Tarea | Relación | Estimación |
 |---|-------|----------|------------|
-| 17 | `frontend/Dockerfile` con `npm ci` y lockfile; cabeceras de seguridad en nginx; `healthcheck` en compose; `URLSCAN_API_KEY` en `render.yaml`. | RNF-10, RNF-02 | 45 min |
+| 17 | **Parcial (`0d1d385`: `URLSCAN_API_KEY` en `render.yaml`).** `frontend/Dockerfile` con `npm ci` y lockfile; cabeceras de seguridad en nginx; `healthcheck` en compose; `URLSCAN_API_KEY` en `render.yaml`. | RNF-10, RNF-02 | 45 min |
 | 18 | GitHub Actions: `pytest`, `pip-audit`, `npm audit --omit=dev`, gitleaks y `npm run build` en cada push. Es una evidencia muy visible de calidad. | Seguridad y calidad | 45 min |
 | 19 | Convertir `security_e2e.ps1` en pruebas que comprueben resultados y fallen si algo no cuadra (o pasarlo a pytest). | Pruebas | 30 min |
-| 20 | Corregir menores: `totalCount` del historial, enlaces SOSPECHOSO (H-10), «/72 motores» y unificar el modelo por defecto (H-11), mostrar URLScan en la UI. | RF-06, RF-11, RF-14 | 45 min |
+| 20 | **Parcial (`0d1d385`: `totalCount`).** Corregir menores: `totalCount` del historial, enlaces SOSPECHOSO (H-10), «/72 motores» y unificar el modelo por defecto (H-11), mostrar URLScan en la UI. | RF-06, RF-11, RF-14 | 45 min |
 | 21 | Fijar las dependencias transitivas del backend (lock). | RNF-10 | 15 min |
 
 ### Cierre (jueves por la tarde y viernes)
@@ -302,3 +342,57 @@ Faltan unos 2 días (hoy es miércoles 14/10 y se entrega el viernes 16/10). El 
 | 22 | Congelar el código, ejecutar gitleaks una última vez sobre el historial y crear y subir el tag `v1.0-practica3`. |
 | 23 | Grabar el vídeo (10 minutos como mínimo) sobre esa versión, indicando el requisito que se demuestra en cada momento. Incluir un fallo de servicio (sin clave de VirusTotal), entradas no válidas (SSRF, 413, 415, 429) y el modo heurístico. **No mostrar `.env`.** |
 | 24 | Memoria `P3_GrupoXX_Memoria.pdf` (20-40 páginas, con los 13 apartados en orden y la declaración de uso de IA) y comprobación de los enlaces en una ventana de incógnito. |
+
+---
+
+## 7. Correcciones aplicadas
+
+Todas en la rama `main`, en local: **no se ha hecho push ni se han creado tags**. Cada bloque es un commit.
+
+### 7.1 Registro
+
+| Bloque | Commit | Mensaje | Resuelve |
+|--------|--------|---------|----------|
+| 1 | `0d1b429` | docs: añadir LICENSE (MIT) y SECURITY.md | Hueco «Licencia», enlaces rotos del README y `SECURITY.md` ignorado por `.gitignore` |
+| 2 | `54365a5` | fix(deps): corregir dependencias vulnerables y documentar riesgos aceptados | Apartado 2: pip-audit pasa a 0 vulnerabilidades y npm audit de 18 a 9 (2 moderadas en producción). Riesgos aceptados RA-01 y RA-02 (apartado 2.3) |
+| 3 | `76faa4e` | feat: reglas heurísticas propias para emails y modo 'Análisis limitado (sin IA)' | H-02, RF-08 y RF-04 (ampliado); RNF-09 en parte (el motivo del modo sin IA es genérico) |
+| 4 | `0d1d385` | feat(security): proteger /api/history con ADMIN_TOKEN y minimizar datos guardados | H-01, minimización de RF-10, `totalCount` de RF-11, `URLSCAN_API_KEY` en `render.yaml` (RF-06) y auditoría de accesos fallidos (RNF-06) |
+| 5 | `e7fa375` | fix(security): corregir bypass del rate limit por X-Forwarded-For y hacer configurables los límites | H-03, RNF-01 (a y b), RNF-07 (b), cuota de IA configurable en tiempo de ejecución |
+| 6 | `796b8d6` | test: suite pytest del backend con un test por requisito verificable | Hueco «Pruebas automatizadas», demostración de RF-09, 500 genéricos (RNF-09 / H-07) y TLD fuera de la Public Suffix List (RF-03) |
+| 7 | `9f3cebd` | docs(readme): instalacion desde cero, variables, uso, tests y limitaciones | Hueco «README» (salvo la prueba por otra persona), H-06 documentado, RNF-10 y RNF-11 documentados |
+| 8 | commit que contiene esta versión del informe | docs(auditoria): marcar lo resuelto y en qué commit | Este apartado y las columnas de estado |
+
+**Evidencias:**
+
+- [`pip-audit-despues.txt`](evidencias/pip-audit-despues.txt)
+- [`npm-audit-despues.txt`](evidencias/npm-audit-despues.txt)
+- [`pytest.txt`](evidencias/pytest.txt): 101 passed
+
+Los casos que se pidieron expresamente en los tests son estos:
+
+| Caso | Test |
+|------|------|
+| Un email de phishing en modo sin IA no sale `LEGÍTIMO` | `test_analysis_email.py::test_rf08_email_de_phishing_en_modo_sin_ia_no_sale_legitimo` |
+| El historial sin token da 401; con token da 200 y sin cuerpos de email | `test_history.py::test_historial_sin_token_valido_da_401_generico_y_se_audita`, `::test_historial_con_token_da_200_sin_cuerpos_de_email` |
+| `X-Forwarded-For` falsos no evitan el bloqueo | `test_rate_limit.py::test_rnf01_xff_falso_no_evita_el_bloqueo_sin_proxy`, `::test_rnf01_xff_falso_no_evita_el_bloqueo_detras_de_render` |
+| Entradas no válidas | `test_security.py::test_rnf04_*` |
+| Anti-SSRF frente a URLs internas o privadas | `test_security.py::test_rnf03_*` |
+| Cabeceras OWASP | `test_security.py::test_rnf02_*` |
+| Caídas de VirusTotal, URLScan y Anthropic | `test_external_failures.py` |
+
+Las APIs externas, WHOIS y DNS se simulan solo en `backend/tests/conftest.py`, y el propio fichero lo indica. Todas las URLs de los tests son ficticias (`example.com`, `.test`).
+
+### 7.2 Qué sigue abierto
+
+| Punto | Por qué sigue abierto | Siguiente paso |
+|-------|-----------------------|----------------|
+| RA-01 Tailwind 3 / `braces` (5 altas en build) | Corregirlo exige migrar a Tailwind 4 (cambio de versión mayor) | Aceptado y documentado (apartado 2.3) |
+| RA-02 `react-router-dom@6` (2 moderadas en producción) | Corregirlo exige `react-router-dom@7`, que pide `--force`, y no es explotable en esta aplicación | Aceptado y documentado (apartado 2.3) |
+| RF-10, RNF-07 (a), RNF-11 y H-06: persistencia en Render | Plan gratuito con `/tmp` efímero | Documentado en el README. Hacer la demo en local o contratar un disco persistente |
+| RNF-09 y H-07: `/docs` público en producción | No se pidió en esta tanda | `docs_url=None` mediante una variable de entorno |
+| RNF-10 y H-09: `npm install` sin lockfile, sin healthchecks | No se pidió en esta tanda | `npm ci` y `healthcheck` |
+| Instalación desde cero por otra persona | Requiere a otra persona y una máquina limpia | Tarea P0 nº 8 |
+| H-04 (llamadas síncronas), H-05 (prompt injection), H-08 (CORS `*`), H-10 (enlaces SOSPECHOSO) | Fuera del alcance de esta tanda | Tareas P1 y P2 del apartado 6 |
+| Tag `v1.0-practica3` y push | Se pidió expresamente no hacerlos | Tarea 22, sobre el commit final |
+| Configuración de Render | `ADMIN_TOKEN` y `TRUSTED_PROXY_HOPS=1` hay que definirlos en el panel. Sin `TRUSTED_PROXY_HOPS`, todo el tráfico compartiría la IP del balanceador y el rate limit se aplicaría a todos a la vez. | Configurarlo antes de desplegar estos commits |
+| `.env` local | Hay que añadir `ADMIN_TOKEN` a mano. Estas correcciones no lo han modificado. | Generar el token como indica el README |
