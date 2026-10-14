@@ -9,7 +9,7 @@
   - Enunciado P1: `practica_ciberseguridad_IA.pdf`, consultado solo para contrastar los requisitos obligatorios de la P1
 - **Alcance:** la auditoría inicial fue solo de análisis, sin modificar ningún fichero del proyecto ni reescribir el historial. Las correcciones posteriores se hicieron en 8 commits, uno por bloque, sin push ni tags. Su estado está en el [apartado 7](#7-correcciones-aplicadas) y en las columnas «Estado» de los apartados 3 y 5, actualizadas con el commit que resuelve cada punto.
 
-> **Estado a 14/10/2026, tras las correcciones:** se han resuelto H-01, H-02, H-03, H-04, H-05, H-07 y H-09, y RF-08, RNF-01 y RNF-09 pasan a Cumplido. Hay 129 tests automáticos que pasan. pip-audit da 0 vulnerabilidades y npm audit 2 moderadas en producción, aceptadas como RA-02. Lo que sigue abierto está en el [apartado 7.2](#72-qué-sigue-abierto).
+> **Estado a 14/10/2026, tras las correcciones:** se han resuelto H-01, H-02, H-03, H-04, H-05, H-07 y H-09, y RF-08, RNF-01 y RNF-09 pasan a Cumplido. La prueba con la IA real encontró un fallo de codificación en el extractor de emails (H-12), que ya está corregido. Hay 151 tests automáticos que pasan. pip-audit da 0 vulnerabilidades y npm audit 2 moderadas en producción, aceptadas como RA-02. Lo que sigue abierto está en el [apartado 7.2](#72-qué-sigue-abierto).
 >
 > Los apartados 3 y 5, el 2.3 y la primera tabla del apartado 4 reflejan el estado actual. El «Resumen» de este apartado, los apartados 1, 2.1 y 2.2, la segunda tabla del 4 y el 6 son el diagnóstico original. En el 6 solo se han añadido las marcas de «Hecho».
 
@@ -172,7 +172,7 @@ Se corrigieron `axios`, `form-data`, `vite`, `postcss`, `browserslist`, `nanoid`
 | RF-01 | Analizar una URL sospechosa y devolver score, veredicto, indicadores y explicación | P1 §3, §5.3, §8.1 | Cumplido | `backend/app/routers/analyze.py` (`POST /api/analyze/url`), `frontend/src/components/URLAnalyzer.jsx` | `test_analysis_url.py` | La respuesta incluye ahora `analysis_mode` y `analysis_label` (`76faa4e`). |
 | RF-02 | Analizar el texto de un email (solo el cuerpo o el correo completo con cabeceras), con un mínimo de 10 caracteres | P1 §8.2 | Cumplido | `analyze.py` (`POST /api/analyze/email`), `frontend/src/components/EmailAnalyzer.jsx` | `test_analysis_email.py` | Validación doble: en el frontend y con Pydantic (`min_length=10`). |
 | RF-03 | Extraer 15 características de la URL: longitud, subdominios, palabras clave, caracteres sospechosos, TLD inusual, HTTPS, IP como host, edad WHOIS y `young_domain` | P1 §5.3, §6.3 | Cumplido | `backend/app/services/url_extractor.py` | `test_analysis_url.py` | Son exactamente 15 claves. Si WHOIS falla, `domain_age_days = None` y el análisis sigue (P1 §6.8). **Corregido en `796b8d6`:** los TLD que no están en la Public Suffix List se marcan como inusuales (antes `tld` quedaba vacío). |
-| RF-04 | Extraer señales del email: remitente, reply-to distinto del remitente, URLs, frases sospechosas en español e inglés, adjuntos | Código (P1 §8.2 solo lo menciona de pasada) | Cumplido | `backend/app/services/email_extractor.py`, `domain_utils.py` | `test_analysis_email.py` | **Ampliado en `76faa4e`:** se analizan las cabeceras antes de quitar el HTML. Se detectan: lenguaje de urgencia y amenaza; peticiones de credenciales y de pago; remitente visible frente a dominio real; Reply-To distinto; texto del enlace frente a destino; extensiones de adjunto peligrosas. |
+| RF-04 | Extraer señales del email: remitente, reply-to distinto del remitente, URLs, frases sospechosas en español e inglés, adjuntos | Código (P1 §8.2 solo lo menciona de pasada) | Cumplido | `backend/app/services/email_extractor.py`, `domain_utils.py` | `test_analysis_email.py`, `test_email_encoding.py` | **Ampliado en `76faa4e`:** se analizan las cabeceras antes de quitar el HTML. Se detectan: lenguaje de urgencia y amenaza; peticiones de credenciales y de pago; remitente visible frente a dominio real; Reply-To distinto; texto del enlace frente a destino; extensiones de adjunto peligrosas. **Corregido en `3acfb6b` (H-12):** el cuerpo ya no pierde tildes ni eñes cuando falta el charset o cuando no coincide con el texto. Lo cubre `test_email_encoding.py`. |
 | RF-05 | Consultar la reputación de la URL en VirusTotal (API v3) | P1 §5.2, §6.4 | Cumplido | `backend/app/services/virustotal.py` | `test_analysis_url.py` | En emails solo se consulta la **primera** URL. Si la URL no existe en VT, se envía a analizar y se devuelve un resultado neutro. |
 | RF-06 | Consultar URLScan.io como contexto adicional | P1 §5.2, §6.4 | Cumplido | `backend/app/services/urlscan.py` | `test_analysis_url.py` | Solo busca informes históricos del dominio; no lanza un escaneo nuevo. El resultado va a Claude pero **no se muestra en la UI**. `URLSCAN_API_KEY` añadida a `render.yaml` en `0d1d385`. |
 | RF-07 | Veredicto con IA (Claude): JSON estricto con score 0-100, veredicto PHISHING / SOSPECHOSO / LEGÍTIMO, indicadores con severidad y explicación en español, con parseo defensivo y normalización | P1 §5.2, §6.3 | Cumplido | `backend/app/services/claude_analyzer.py` | `test_ai_and_quota.py`, `test_prompt_injection.py` (SDK simulado) | **Desde `f6b79c8`** la respuesta se valida contra un esquema JSON estricto (claves exactas, `score` entero de 0 a 100 y veredicto exacto); si no cumple, se usa el fallback en lugar de corregir los valores. El modelo por defecto del código (`claude-sonnet-4-5-20250929`) no coincide con el de `.env.example` y `render.yaml` (`claude-sonnet-4-6`). |
@@ -235,7 +235,7 @@ Estado actual de cada hueco:
 | `.gitignore` | Ya no ignora `SECURITY.md` (`0d1b429`). Las demás sugerencias siguen pendientes. |
 | Licencia | **Resuelto en `0d1b429`** (MIT). |
 | `Dockerfile` y `docker-compose.yml` | uvicorn arranca con `--no-proxy-headers` (`e7fa375`) y `render.yaml` declara `URLSCAN_API_KEY` y `ADMIN_TOKEN` (`0d1d385`). `frontend/Dockerfile` usa `npm ci` (`e62c678`). Siguen pendientes los healthchecks. |
-| Pruebas automatizadas | **Resuelto en `796b8d6`** y ampliado en `f6b79c8`, `df134a9` y `4907f96`: 129 tests con pytest en `backend/tests/`; salida en [`docs/evidencias/pytest.txt`](evidencias/pytest.txt). No hay tests de frontend ni CI. |
+| Pruebas automatizadas | **Resuelto en `796b8d6`** y ampliado en `f6b79c8`, `df134a9`, `4907f96` y `3acfb6b`: 151 tests con pytest en `backend/tests/`; salida en [`docs/evidencias/pytest.txt`](evidencias/pytest.txt). No hay tests de frontend ni CI. |
 | Etiqueta `v1.0-practica3` | **Pendiente a propósito:** en esta tanda se pidió no crear tags. |
 | Documento de seguridad | `SECURITY.md` versionado (`0d1b429`, ampliado en `0d1d385`). El STRIDE completo sigue pendiente para la memoria. |
 
@@ -276,6 +276,7 @@ Estos fallos afectan a los criterios «Seguridad y calidad técnica» (15 %) y �
 | H-10 | Abierto | — | En el historial ya no se muestran URLs, pero en `ResultCard` las URLs SOSPECHOSO siguen siendo clicables. |
 | H-11 | **Parcial** | `0d1d385` | Corregido el `totalCount` del historial (estaba en RF-11). Siguen pendientes «/72 motores», el modelo por defecto y `utcnow()`. |
 | Nuevo | **Resuelto** | `796b8d6` | Encontrado por los tests: `url_extractor` no detectaba como inusuales los TLD que no están en la Public Suffix List. |
+| H-12 (nuevo, media) | **Resuelto** | `3acfb6b` | **Encontrado en la prueba con la IA real del 14/10.** Al pegar un email sin `Content-Type`, `_get_body` perdía los caracteres no ASCII del cuerpo («cerámica» → «cer�mica»): Claude lo marcaba como «codificación de caracteres con errores» y las reglas heurísticas con tilde («contraseña», «número de tarjeta», «perderá el acceso») dejaban de detectar las frases. También fallaban `charset=utf-8` en 8 bits, HTML, partes multipart, base64 sin charset y charsets desconocidos, y el «€» acababa como el texto literal `\u20ac`. La causa: el contenido llega como texto Unicode desde el JSON y `get_content()` lo recodificaba y lo decodificaba como ASCII. Ahora las partes en 7bit/8bit se usan tal cual, y las partes en base64/quoted-printable se decodifican con el charset declarado, después UTF-8, después cp1252 y por último latin-1. `test_email_encoding.py` añade 22 tests, de los que 16 fallan con el código anterior. |
 
 Diagnóstico original:
 
@@ -365,13 +366,15 @@ Todas en la rama `main`, en local: **no se ha hecho push ni se han creado tags**
 | 10 | `df134a9` | fix(security): desactivar /docs, /redoc y /openapi.json con ENVIRONMENT=production | H-07 y RNF-09 |
 | 11 | `e62c678` | build(frontend): usar npm ci con package-lock.json en el Dockerfile | H-09 y RNF-10 en parte |
 | 12 | `4907f96` | perf: sacar del event loop las llamadas bloqueantes a la IA, WHOIS y DNS | H-04 y la nota de RNF-04 |
-| 13 | commit que contiene esta versión del informe | docs: evidencias de pytest y auditoria actualizadas | Este apartado, `pytest.txt` (129 passed) y la limitación del README |
+| 13 | `bdb09ea` | docs: evidencias de pytest y auditoria actualizadas | Este apartado, `pytest.txt` (129 passed) y la limitación del README |
+| 14 | `3acfb6b` | fix(email): conservar tildes y enes del cuerpo con o sin charset declarado | H-12, encontrado en la prueba con la IA real |
+| 15 | commit que contiene esta versión del informe | docs: H-12 en la auditoria y evidencias de pytest | Este registro y `pytest.txt` (151 passed) |
 
 **Evidencias:**
 
 - [`pip-audit-despues.txt`](evidencias/pip-audit-despues.txt)
 - [`npm-audit-despues.txt`](evidencias/npm-audit-despues.txt)
-- [`pytest.txt`](evidencias/pytest.txt): 129 passed
+- [`pytest.txt`](evidencias/pytest.txt): 151 passed
 
 Los casos que se pidieron expresamente en los tests son estos:
 
@@ -385,6 +388,7 @@ Los casos que se pidieron expresamente en los tests son estos:
 | Cabeceras OWASP | `test_security.py::test_rnf02_*` |
 | Caídas de VirusTotal, URLScan y Anthropic | `test_external_failures.py` |
 | Inyección de prompt: «ignora las instrucciones anteriores…», JSON falso y cierre de etiqueta dentro del cuerpo | `test_prompt_injection.py` |
+| Emails sin `Content-Type` con tildes y eñes: el cuerpo llega intacto y se siguen detectando las frases con tilde | `test_email_encoding.py` |
 | Respuesta de la IA fuera de esquema, tratada como fallo | `test_prompt_injection.py::test_respuesta_fuera_de_esquema_es_fallo_de_la_ia` (17 variantes) |
 | `/docs`, `/redoc` y `/openapi.json` desactivados en producción | `test_platform.py::test_docs_desactivados_en_produccion` |
 | Claude y WHOIS no bloquean el event loop | `test_event_loop.py` |
