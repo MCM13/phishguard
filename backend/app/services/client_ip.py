@@ -32,6 +32,16 @@ from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 
+# TEMPORAL (diagnóstico de producción en Render): quitar tras identificar
+# qué cabecera trae la IP real del cliente. Nunca registra valores de IP.
+_PROXY_HEADER_NAMES = (
+    "x-forwarded-for",
+    "x-real-ip",
+    "true-client-ip",
+    "cf-connecting-ip",
+    "forwarded",
+)
+
 
 def _trusted_hops() -> int:
     raw = os.getenv("TRUSTED_PROXY_HOPS", "0").strip()
@@ -40,6 +50,16 @@ def _trusted_hops() -> int:
     except ValueError:
         logger.warning("TRUSTED_PROXY_HOPS=%r no es un entero; se usa 0", raw)
         return 0
+
+
+def log_trusted_proxy_hops_at_startup() -> None:
+    """TEMPORAL: deja constancia del hops efectivo al arrancar (sin secretos)."""
+    logger.warning(
+        "TEMP proxy_diag startup TRUSTED_PROXY_HOPS_effective=%d "
+        "TRUSTED_PROXY_CIDRS_configured=%s",
+        _trusted_hops(),
+        bool(os.getenv("TRUSTED_PROXY_CIDRS", "").strip()),
+    )
 
 
 def _trusted_networks() -> List[ipaddress._BaseNetwork]:
@@ -62,31 +82,116 @@ def _valid_ip(value: str) -> str | None:
         return None
 
 
+def _is_loopback(host: str) -> bool:
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _log_proxy_diag(
+    request: Request,
+    *,
+    hops: int,
+    peer: str,
+    present_headers: List[str],
+    xff_entry_count: int,
+    branch: str,
+) -> None:
+    """TEMPORAL: metadatos de proxy sin valores de IP ni secretos."""
+    # Una sola línea por petición (rate limit y auditoría llaman ambos a get_client_ip).
+    if getattr(request.state, "_proxy_diag_logged", False):
+        return
+    request.state._proxy_diag_logged = True
+    logger.warning(
+        "TEMP proxy_diag hops=%d peer_is_loopback=%s peer_is_private=%s "
+        "headers_present=%s xff_entry_count=%d branch=%s",
+        hops,
+        _is_loopback(peer),
+        _is_private(peer),
+        present_headers,
+        xff_entry_count,
+        branch,
+    )
+
+
+def _is_private(host: str) -> bool:
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False
+
+
 def get_client_ip(request: Request) -> str:
     """IP del cliente según la cadena de proxies de confianza configurada."""
     peer = request.client.host if request.client and request.client.host else "unknown"
 
+    present_headers = [name for name in _PROXY_HEADER_NAMES if request.headers.get(name)]
+    xff_entries = [
+        entry.strip()
+        for header in request.headers.getlist("x-forwarded-for")
+        for entry in header.split(",")
+        if entry.strip()
+    ]
+    xff_entry_count = len(xff_entries)
+
     hops = _trusted_hops()
     if hops == 0:
+        _log_proxy_diag(
+            request,
+            hops=hops,
+            peer=peer,
+            present_headers=present_headers,
+            xff_entry_count=xff_entry_count,
+            branch="hops0_use_peer",
+        )
         return peer
 
     networks = _trusted_networks()
     if networks:
         peer_ip = _valid_ip(peer)
         if peer_ip is None or not any(ipaddress.ip_address(peer_ip) in net for net in networks):
+            _log_proxy_diag(
+                request,
+                hops=hops,
+                peer=peer,
+                present_headers=present_headers,
+                xff_entry_count=xff_entry_count,
+                branch="cidr_reject_use_peer",
+            )
             return peer
 
-    # Varias cabeceras X-Forwarded-For equivalen a una sola lista concatenada
-    entries = [
-        entry.strip()
-        for header in request.headers.getlist("x-forwarded-for")
-        for entry in header.split(",")
-        if entry.strip()
-    ]
-    if len(entries) < hops:
+    if xff_entry_count < hops:
         # Menos entradas que proxies: la petición no ha pasado por la cadena
         # esperada, así que la cabecera no es fiable.
+        _log_proxy_diag(
+            request,
+            hops=hops,
+            peer=peer,
+            present_headers=present_headers,
+            xff_entry_count=xff_entry_count,
+            branch="xff_too_short_use_peer",
+        )
         return peer
 
-    client = _valid_ip(entries[-hops])
-    return client or peer
+    client = _valid_ip(xff_entries[-hops])
+    if client:
+        _log_proxy_diag(
+            request,
+            hops=hops,
+            peer=peer,
+            present_headers=present_headers,
+            xff_entry_count=xff_entry_count,
+            branch="xff_entries_minus_hops",
+        )
+        return client
+
+    _log_proxy_diag(
+        request,
+        hops=hops,
+        peer=peer,
+        present_headers=present_headers,
+        xff_entry_count=xff_entry_count,
+        branch="xff_invalid_use_peer",
+    )
+    return peer
