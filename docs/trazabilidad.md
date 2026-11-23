@@ -27,7 +27,7 @@ Los huecos **«Vídeo mm:ss»** los rellena el autor tras la grabación.
 | RNF-05 | Contenedor no root | Cumplido | `backend/Dockerfile` | PR-10, PR-58 | pytest.txt (estático); Vídeo mm:ss |
 | RNF-06 | Auditoría JSON | Cumplido | `middleware/audit_log.py` | PR-10, PR-37 | verificación §6 (líneas de log); pytest.txt; Vídeo mm:ss |
 | RNF-07 | Cuotas Anthropic | Cumplido | `anthropic_rate_limit.py`, `models/anthropic_usage.py` | PR-04, PR-71, PR-76 | pytest.txt; cuota conservada tras reinicio (PR-76); Vídeo mm:ss |
-| RNF-08 | Gestión de secretos | Cumplido | `.gitignore`, `.env.example`, `render.yaml`, gitleaks en CI | PR-73, PR-77 | `auditoria-p3.md` §1 (gitleaks/trufflehog) y §8 (`ADMIN_TOKEN` rotado; prueba del antiguo PENDIENTE); Vídeo mm:ss |
+| RNF-08 | Gestión de secretos | Cumplido | `.gitignore`, `.env.example`, `render.yaml`, gitleaks en CI | PR-73, PR-77 | `auditoria-p3.md` §1 (gitleaks/trufflehog) y §8 (`ADMIN_TOKEN` rotado; el antiguo da 401); Vídeo mm:ss |
 | RNF-09 | Errores genéricos; sin docs en prod | Cumplido | `main.py`, `analyze.py`, `api.js` | PR-09, PR-10, PR-30, PR-44 | verificación §1; pytest.txt; Vídeo mm:ss |
 | RNF-10 | Docker Compose reproducible | **Parcial** | `docker-compose.yml`, Dockerfiles, `backend/requirements*.lock`, `.github/workflows/ci.yml`, README | PR-59, PR-72, PR-73, PR-74 | README; Vídeo mm:ss |
 | RNF-11 | Despliegue HTTPS + dominio | **Parcial** | Render + Cloudflare Pages | PR-38, PR-60 | verificación §7; D-01 en `requisitos.md`; Vídeo mm:ss |

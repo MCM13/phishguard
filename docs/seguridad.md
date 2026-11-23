@@ -75,7 +75,7 @@ Lo no comprobado se marca **PENDIENTE**.
 | `render.yaml` | Claves con `sync: false` (blueprint de referencia; el servicio actual se configuró a mano) |
 | Escaneo de historial | **gitleaks** y **trufflehog**: sin leaks en el historial git (`auditoria-p3.md` §1: «no leaks found») |
 | Hallazgos en árbol de trabajo | Solo `.env` local ignorado (esperado) |
-| Rotación | **Rotar `ADMIN_TOKEN` tras la entrega** (y cualquier clave que se haya pegado en chat o capturas). **PENDIENTE** de ejecución por el autor |
+| Rotación | **`ADMIN_TOKEN` rotado el 23/11**; el antiguo devuelve 401 (PR-77). Repetirlo con cualquier clave que se pegue en un chat o una captura |
 
 No abrir ni mostrar `.env` en el vídeo ni en capturas.
 
@@ -136,7 +136,7 @@ No abrir ni mostrar `.env` en el vídeo ni en capturas.
 |--------|-------------|--------------------|----------|
 | Inyección de prompt sin señales heurísticas | Un email elaborado puede convencer a la IA de LEGÍTIMO/SOSPECHOSO si las reglas locales no disparan | Delimitación + esquema + suelo heurístico cuando sí hay señales | **Sí:** no cubre todos los casos (H-05 residual) |
 | Disco efímero en Render | Historial y cuotas se reiniciaban | PostgreSQL gestionado (Neon) por `DATABASE_URL` desde el 23/11; verificado tras reinicio (PR-76) | No |
-| `ADMIN_TOKEN` de producción expuesto en una conversación | Se pegó en un chat durante la verificación del 14/10 | Rotado en Render el 23/11; falta comprobar que el antiguo da 401 (PR-77) | Bajo (pendiente de esa comprobación) |
+| `ADMIN_TOKEN` de producción expuesto en una conversación | Se pegó en un chat durante la verificación del 14/10 | Rotado en Render el 23/11; el antiguo da 401 (PR-77) | No |
 | Credenciales de la base de datos | `DATABASE_URL` incluye usuario y contraseña de Neon | Solo en el panel de Render; el log de arranque la muestra con la contraseña oculta (`***`) | Bajo |
 | Enlaces SOSPECHOSO clicables | H-10 | PHISHING ya bloqueado | **Sí** (menor) |
 | CORS sin `ALLOWED_ORIGINS` | H-08 | Resuelto en `44de64b`: sin variable no se abre a `*` y en producción no se permite ningún origen | No |
