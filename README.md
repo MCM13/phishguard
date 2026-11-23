@@ -129,7 +129,7 @@ Copia `.env.example` a `.env` en la raíz del proyecto. **Todas las claves y sec
 | `TRUSTED_PROXY_HOPS` | No | `0` | Proxies de confianza que añaden `X-Forwarded-For`. `0` = IP del socket (local). Respaldo si no se usa Cloudflare. |
 | `TRUSTED_PROXY_CIDRS` | No | vacío | Redes (CSV) desde las que se acepta `X-Forwarded-For`. |
 | `TRUST_CF_CONNECTING_IP` | No | `false` | Si `true`, la IP sale de `CF-Connecting-IP` (Cloudflare). **Solo con Cloudflare delante**; sin él el cliente podría falsificarla. |
-| `ALLOWED_ORIGINS` | Sí en producción | `*` en código, `http://localhost:3000` en Compose | Orígenes permitidos para CORS (lista separada por comas). |
+| `ALLOWED_ORIGINS` | Sí en producción | `http://localhost:3000,http://127.0.0.1:3000` en desarrollo; ninguno en producción | Orígenes permitidos para CORS (lista separada por comas). Nunca se abre a `*` por omisión; `*` explícito solo se respeta fuera de producción. |
 | `FRONTEND_URL` | No | vacío | URL pública del frontend; se añade a CORS. |
 | `DATABASE_URL` | No | `sqlite:////data/phishguard.db` en Compose | Cadena de conexión SQLite. |
 | `LOG_LEVEL` | No | `INFO` | Nivel de log del backend. |

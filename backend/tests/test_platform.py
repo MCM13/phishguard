@@ -76,6 +76,32 @@ def test_rnf12_cors_desde_entorno(monkeypatch):
     assert get_allowed_origins() == ["https://app.example.test", "https://www.example.test"]
 
 
+def test_cors_sin_variable_no_queda_abierto(monkeypatch):
+    """H-08: sin ALLOWED_ORIGINS nunca se usa '*'."""
+    monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
+    monkeypatch.delenv("FRONTEND_URL", raising=False)
+
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    assert get_allowed_origins() == ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    assert get_allowed_origins() == []
+
+
+def test_cors_comodin_rechazado_en_produccion(monkeypatch):
+    monkeypatch.delenv("FRONTEND_URL", raising=False)
+    monkeypatch.setenv("ALLOWED_ORIGINS", "*")
+
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    assert get_allowed_origins() == ["*"]
+
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    assert get_allowed_origins() == []
+
+    monkeypatch.setenv("FRONTEND_URL", "https://app.example.test")
+    assert get_allowed_origins() == ["https://app.example.test"]
+
+
 def test_rnf12_cors_rechaza_origen_no_permitido(client):
     allowed = client.options(
         "/api/stats",
