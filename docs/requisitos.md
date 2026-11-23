@@ -28,7 +28,7 @@
 
 **Notas de estado**
 
-- **RF-10 Parcial:** en local/Compose los datos persisten; en Render (`sqlite:////tmp/…`) se pierden en cada reinicio (documentado en el README).
+- **RF-10 Parcial:** en local/Compose los datos persisten; en Render (`sqlite:////tmp/…`) se pierden en cada reinicio (documentado en el README). Desde el 23/11 el código admite PostgreSQL por `DATABASE_URL` (`667daca`); pasa a Cumplido cuando se configure en Render y se compruebe tras un reinicio (PR-76).
 - **RF-15:** `/docs` está disponible en desarrollo; en producción se desactiva a propósito (`ENVIRONMENT=production`, ver RNF-09).
 - **RF-08:** en modo sin IA la UI muestra «Análisis limitado (sin IA)» y no devuelve `LEGÍTIMO` (usa `NO CONCLUYENTE` si no hay señales suficientes).
 
@@ -54,8 +54,9 @@
 
 **Notas de estado**
 
-- **RNF-07 / RNF-11 Parciales:** disco efímero y cold start del plan gratuito de Render.
-- **RNF-10 Parcial:** falta instalación por otra persona en máquina limpia; sin healthchecks ni lock de dependencias del backend.
+- **RNF-07 / RNF-11 Parciales:** disco efímero y cold start del plan gratuito de Render. El disco efímero deja de afectar a las cuotas cuando `DATABASE_URL` apunte a PostgreSQL (mismo caso que RF-10).
+- **RNF-10 Parcial:** falta instalación por otra persona en máquina limpia y no hay healthchecks. Resuelto el 23/11: lock del backend con hashes (`354ce87`) y CI en GitHub Actions (`bc28edd`).
+- **RNF-12:** desde `44de64b` CORS no se abre a `*` si falta la variable (H-08).
 - **RNF-02:** el frontend (Pages / nginx) no añade las mismas cabeceras OWASP.
 
 **Recuento:** RF 14 Cumplidos + 1 Parcial; RNF 10 Cumplidos + 3 Parciales. Ningún Pendiente en la lista principal.

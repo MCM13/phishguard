@@ -14,7 +14,7 @@ Los huecos **«Vídeo mm:ss»** los rellena el autor tras la grabación.
 | RF-07 | Veredicto Claude (JSON estricto) | Cumplido | `backend/app/services/claude_analyzer.py` | PR-04, PR-05, PR-20–25, PR-33–34, PR-43, PR-57 | pytest.txt; verificación §4; Vídeo mm:ss |
 | RF-08 | Fallback heurístico / «Análisis limitado» | Cumplido | `claude_analyzer.py` (`_fallback_*`); `ResultCard.jsx` | PR-02, PR-04, PR-40, PR-52 | pytest.txt; auditoría H-02; Vídeo mm:ss |
 | RF-09 | Tolerancia a fallos VT/URLScan/WHOIS | Cumplido | `virustotal.py`, `urlscan.py`, `url_extractor.py` | PR-06 | pytest.txt (`test_external_failures`); Vídeo mm:ss |
-| RF-10 | Persistencia SQLite | **Parcial** | `database.py`, `models/analysis.py`, `_persist_analysis` | PR-07 | pytest.txt (`test_history`); README limitaciones; Vídeo mm:ss |
+| RF-10 | Persistencia SQLite / PostgreSQL | **Parcial** | `database.py`, `models/analysis.py`, `_persist_analysis` | PR-07, PR-71, PR-76 | pytest.txt (`test_history`); suite contra PostgreSQL (PR-71); README limitaciones; Vídeo mm:ss |
 | RF-11 | Historial paginado + filtro + auth | Cumplido | `routers/history.py`; `History.jsx`, `HistoryTable.jsx` | PR-07, PR-31, PR-41, PR-53 | verificación §2; pytest.txt; Vídeo mm:ss |
 | RF-12 | Dashboard / stats | Cumplido | `history.py` `GET /api/stats`; `Dashboard.jsx` | PR-07, PR-54 | pytest.txt; Vídeo mm:ss |
 | RF-13 | Medidor visual 0–100 | Cumplido | `ScoreGauge.jsx`, `ResultCard.jsx` | PR-50 | Vídeo mm:ss |
@@ -26,12 +26,12 @@ Los huecos **«Vídeo mm:ss»** los rellena el autor tras la grabación.
 | RNF-04 | Validación / saneado / timeouts | Cumplido | `text_sanitizer.py`, `request_guards.py`, Pydantic | PR-09, PR-11 | pytest.txt; Vídeo mm:ss |
 | RNF-05 | Contenedor no root | Cumplido | `backend/Dockerfile` | PR-10, PR-58 | pytest.txt (estático); Vídeo mm:ss |
 | RNF-06 | Auditoría JSON | Cumplido | `middleware/audit_log.py` | PR-10, PR-37 | verificación §6 (líneas de log); pytest.txt; Vídeo mm:ss |
-| RNF-07 | Cuotas Anthropic | **Parcial** | `anthropic_rate_limit.py`, `models/anthropic_usage.py` | PR-04 | pytest.txt; README (reinicio en `/tmp`); Vídeo mm:ss |
-| RNF-08 | Gestión de secretos | Cumplido | `.gitignore`, `.env.example`, `render.yaml` | — (auditoría §1) | `auditoria-p3.md` §1 (gitleaks/trufflehog); Vídeo mm:ss |
+| RNF-07 | Cuotas Anthropic | **Parcial** | `anthropic_rate_limit.py`, `models/anthropic_usage.py` | PR-04, PR-71, PR-76 | pytest.txt; README (reinicio en `/tmp`); Vídeo mm:ss |
+| RNF-08 | Gestión de secretos | Cumplido | `.gitignore`, `.env.example`, `render.yaml`, gitleaks en CI | PR-73, PR-77 | `auditoria-p3.md` §1 (gitleaks/trufflehog) y §8 (rotación de `ADMIN_TOKEN` PENDIENTE); Vídeo mm:ss |
 | RNF-09 | Errores genéricos; sin docs en prod | Cumplido | `main.py`, `analyze.py`, `api.js` | PR-09, PR-10, PR-30, PR-44 | verificación §1; pytest.txt; Vídeo mm:ss |
-| RNF-10 | Docker Compose reproducible | **Parcial** | `docker-compose.yml`, Dockerfiles, README | PR-59 | README; Vídeo mm:ss |
+| RNF-10 | Docker Compose reproducible | **Parcial** | `docker-compose.yml`, Dockerfiles, `backend/requirements*.lock`, `.github/workflows/ci.yml`, README | PR-59, PR-72, PR-73, PR-74 | README; Vídeo mm:ss |
 | RNF-11 | Despliegue HTTPS + dominio | **Parcial** | Render + Cloudflare Pages | PR-38, PR-60 | verificación §7; D-01 en `requisitos.md`; Vídeo mm:ss |
-| RNF-12 | Config por entorno | Cumplido | `.env.example`, `cors_config.py`, `client_ip.py`, … | PR-10 | README; `.env.example`; Vídeo mm:ss |
+| RNF-12 | Config por entorno | Cumplido | `.env.example`, `cors_config.py`, `client_ip.py`, … | PR-10, PR-70, PR-75 | README; `.env.example`; Vídeo mm:ss |
 | RNF-13 | UI en español | Cumplido | `frontend/src/*`, prompt Claude | PR-50–54 | Vídeo mm:ss |
 | D-01 | Hetzner → Render/CF | **A revisar** | Despliegue actual | PR-60 | `requisitos.md` §3; Vídeo mm:ss |
 | D-06 | Auth usuarios vs ADMIN_TOKEN | **A revisar** | `admin_auth.py` | PR-31, PR-53 | `requisitos.md`; Vídeo mm:ss |

@@ -11,6 +11,8 @@
 
 > **Estado a 14/10/2026, tras las correcciones:** se han resuelto H-01, H-02, H-03, H-04, H-05, H-07, H-09, H-12 y H-13, y RF-08, RNF-01 y RNF-09 pasan a Cumplido. H-13 (IP del rate limit en producción detrás de Cloudflare → Render) se diagnosticó con logs reales y se corrige con `TRUST_CF_CONNECTING_IP`. Hay 157 tests automáticos que pasan. pip-audit da 0 vulnerabilidades y npm audit 2 moderadas en producción, aceptadas como RA-02. Lo que sigue abierto está en el [apartado 7.2](#72-qué-sigue-abierto).
 >
+> **Actualización 23/11/2026, tras la revisión docente:** H-08 (CORS) resuelto; lockfile del backend con hashes, CI en GitHub Actions y soporte de PostgreSQL para la persistencia (H-06, pendiente de activar en Render). Ahora hay 160 tests. Detalle en el [apartado 8](#8-revisión-docente-23112026).
+>
 > Los apartados 3 y 5, el 2.3 y la primera tabla del apartado 4 reflejan el estado actual. El «Resumen» de este apartado, los apartados 1, 2.1 y 2.2, la segunda tabla del 4 y el 6 son el diagnóstico original. En el 6 solo se han añadido las marcas de «Hecho».
 
 ## Resumen (diagnóstico original)
@@ -198,9 +200,9 @@ Se corrigieron `axios`, `form-data`, `vite`, `postcss`, `browserslist`, `nanoid`
 | RNF-07 | Cuotas configurables de llamadas a Anthropic (por hora y por día), con el contador guardado en la base de datos | P1 §6.6 | **Parcial** | `backend/app/services/anthropic_rate_limit.py`, `backend/app/models/anthropic_usage.py` | `test_ai_and_quota.py` | (b) **Resuelto en `e7fa375`:** comprobar y registrar se hacen bajo un lock, y los límites se leen en cada llamada. (a) Sigue Parcial: en Render el contador se reinicia con la base de datos de `/tmp`. Está documentado en el README. |
 | RNF-08 | Gestión de secretos: las claves solo están en `.env` o en los paneles de Render y Cloudflare, nunca en el repositorio | P1 §6.7; README | Cumplido | `.gitignore`, `.env.example`, `render.yaml` (`sync: false`) | — (apartado 1) | Verificado en el apartado 1. `ADMIN_TOKEN` está vacío en `.env.example` (fail closed) y con `sync: false` en `render.yaml`. |
 | RNF-09 | Errores genéricos, sin trazas ni detalles internos para el usuario | P1 (SECURITY.md histórico); `frontend/src/api.js` | Parcial → **Cumplido** (`df134a9`) | `frontend/src/api.js::friendlyError`, `analyze.py`, `admin_auth.py`, `main.py` | `test_security.py`, `test_external_failures.py`, `test_platform.py` | **Resuelto en `796b8d6`:** los 500 ya no exponen el nombre de la excepción. **En `76faa4e`:** el motivo del modo sin IA es genérico. El 401 del historial es idéntico para todos los motivos. **Resuelto en `df134a9`:** con `ENVIRONMENT=production` no se publican `/docs`, `/redoc` ni `/openapi.json` (404). |
-| RNF-10 | Entorno reproducible con Docker Compose: 2 servicios, volumen persistente y variables desde `.env` | P1 §5.4, §6.2, §7 | **Parcial** | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `README.md` | — | **En `9f3cebd`** se documentó la instalación desde cero paso a paso, y el comando de tests del README se verificó sobre una imagen limpia. **En `e62c678`** `frontend/Dockerfile` pasa a usar `npm ci` con `package-lock.json` (H-09); el build de la imagen se comprobó. Siguen abiertos: no hay healthchecks, el backend no tiene lock de dependencias transitivas y **falta una instalación hecha por otra persona**. |
+| RNF-10 | Entorno reproducible con Docker Compose: 2 servicios, volumen persistente y variables desde `.env` | P1 §5.4, §6.2, §7 | **Parcial** | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `README.md` | — | **En `9f3cebd`** se documentó la instalación desde cero paso a paso, y el comando de tests del README se verificó sobre una imagen limpia. **En `e62c678`** `frontend/Dockerfile` pasa a usar `npm ci` con `package-lock.json` (H-09); el build de la imagen se comprobó. **En `354ce87`** el backend tiene `requirements.lock` y `requirements-dev.lock` (todas las versiones, también las transitivas, con hashes SHA-256) y el `Dockerfile` instala con `--require-hashes`. **En `bc28edd`** la CI reconstruye la imagen y ejecuta la suite en cada push. Siguen abiertos: no hay healthchecks y **falta una instalación hecha por otra persona**. |
 | RNF-11 | Despliegue accesible en Internet con HTTPS y dominio propio (Cloudflare Pages + Render) | P1 §3, §6.7, §7 pasos 6-9 | **Parcial** | `render.yaml`, `frontend/.env.production`; configuración en los paneles | — | Sin cambios: los datos no persisten y el plan gratuito tiene arranque en frío. Las limitaciones están documentadas en el README (`9f3cebd`). **Hay que definir `ADMIN_TOKEN` y `TRUSTED_PROXY_HOPS=1` en el panel de Render** antes de la demo. Ver también D-01. |
-| RNF-12 | Configuración por variables de entorno: modelo, límites de cuota, CORS, URL del backend y base de datos | P1 §9.2; README | Cumplido | `.env.example`, `backend/app/cors_config.py`, `database.py`, `rate_limit.py`, `client_ip.py` | `test_platform.py`, `test_ai_and_quota.py`, `test_rate_limit.py` | Añadidas `ADMIN_TOKEN`, `RATE_LIMIT_*`, `TRUSTED_PROXY_*` y `TRUST_CF_CONNECTING_IP` (H-13). Sigue pendiente H-08: el valor por defecto de CORS en código es `"*"`. |
+| RNF-12 | Configuración por variables de entorno: modelo, límites de cuota, CORS, URL del backend y base de datos | P1 §9.2; README | Cumplido | `.env.example`, `backend/app/cors_config.py`, `database.py`, `rate_limit.py`, `client_ip.py` | `test_platform.py`, `test_ai_and_quota.py`, `test_rate_limit.py` | Añadidas `ADMIN_TOKEN`, `RATE_LIMIT_*`, `TRUSTED_PROXY_*` y `TRUST_CF_CONNECTING_IP` (H-13). H-08 resuelto en `44de64b`: CORS ya no se abre a `"*"` si falta la variable. `DATABASE_URL` acepta PostgreSQL (`667daca`). |
 | RNF-13 | Interfaz y resultados en español | P1 §3, §8 | Cumplido | Todo `frontend/src`, prompt de `claude_analyzer.py` | — (frontend) | — |
 
 **Recuento actual:** RF: 14 Cumplidos y 1 Parcial (RF-10). RNF: 10 Cumplidos y 3 Parciales (RNF-07, RNF-10 y RNF-11). Ningún Pendiente. Antes de las correcciones eran RF 13/2 y RNF 8/5.
@@ -235,7 +237,7 @@ Estado actual de cada hueco:
 | `.gitignore` | Ya no ignora `SECURITY.md` (`0d1b429`). Las demás sugerencias siguen pendientes. |
 | Licencia | **Resuelto en `0d1b429`** (MIT). |
 | `Dockerfile` y `docker-compose.yml` | uvicorn arranca con `--no-proxy-headers` (`e7fa375`) y `render.yaml` declara `URLSCAN_API_KEY` y `ADMIN_TOKEN` (`0d1d385`). `frontend/Dockerfile` usa `npm ci` (`e62c678`). Siguen pendientes los healthchecks. |
-| Pruebas automatizadas | **Resuelto en `796b8d6`** y ampliado (prompt injection, docs off, encoding, rate limit/CF…): **157 tests** con pytest en `backend/tests/`; salida en [`docs/evidencias/pytest.txt`](evidencias/pytest.txt). No hay tests de frontend ni CI. |
+| Pruebas automatizadas | **Resuelto en `796b8d6`** y ampliado (prompt injection, docs off, encoding, rate limit/CF…): **160 tests** con pytest en `backend/tests/`; salida en [`docs/evidencias/pytest.txt`](evidencias/pytest.txt). CI en GitHub Actions desde `bc28edd` (apartado 8). No hay tests de frontend. |
 | Etiqueta `v1.0-practica3` | **Pendiente a propósito:** en esta tanda se pidió no crear tags. |
 | Documento de seguridad | `SECURITY.md` versionado (`0d1b429`, ampliado en `0d1d385`). El STRIDE completo sigue pendiente para la memoria. |
 
@@ -269,9 +271,9 @@ Estos fallos afectan a los criterios «Seguridad y calidad técnica» (15 %) y �
 | H-03 | **Resuelto** (ampliado en H-13) | `e7fa375` | `get_client_ip` común para slowapi y auditoría. `TRUSTED_PROXY_HOPS` / `TRUSTED_PROXY_CIDRS`. uvicorn con `--no-proxy-headers`. En producción con Cloudflare el hops=1 no bastaba → H-13. |
 | H-04 | **Resuelto** | `4907f96` | `asyncio.to_thread` para el SDK de Anthropic, WHOIS (`extract_url_features`) y DNS (`validate_public_url`); el cliente de Anthropic tiene un timeout de 25 s. Cubierto por `test_event_loop.py`, que falla con el código anterior. |
 | H-05 | **Resuelto (mitigado)** | `f6b79c8` | (1) Las instrucciones van en el prompt de sistema, y los datos, entre etiquetas `<contenido_analizado>`, con `<` y `>` escapados para que el contenido no pueda cerrar la etiqueta. (2) La respuesta se valida contra un esquema estricto; si no cumple, se usa el fallback. (3) Si las heurísticas dan riesgo alto y la IA un veredicto menor, prevalece PHISHING y la discrepancia se muestra (campo `discrepancy`, aviso en `ResultCard`). Cubierto por `test_prompt_injection.py`. Queda un riesgo residual: un email que engañe a la IA sin activar las heurísticas. |
-| H-06 | Abierto (documentado) | `9f3cebd` | Limitación del disco efímero explicada en el README. |
+| H-06 | **Código listo; activación PENDIENTE** | `9f3cebd`, `667daca` | Limitación del disco efímero explicada en el README. Desde `667daca`, `DATABASE_URL` acepta PostgreSQL (psycopg 3, `pool_pre_ping`) y la suite completa pasa también contra PostgreSQL 16. Queda resuelto cuando `DATABASE_URL` apunte en Render a un PostgreSQL gestionado y se compruebe que el historial sobrevive a un reinicio. Mientras tanto, el arranque avisa en el log. |
 | H-07 | **Resuelto** | `76faa4e`, `796b8d6`, `df134a9` | Los 500 y los motivos del modo sin IA son genéricos. Con `ENVIRONMENT=production` no hay `/docs`, `/redoc` ni `/openapi.json`. |
-| H-08 | Abierto | — | — |
+| H-08 | **Resuelto** | `44de64b` | CORS cerrado por defecto: sin `ALLOWED_ORIGINS` ni `FRONTEND_URL` solo se permiten `localhost:3000` y `127.0.0.1:3000` en desarrollo y ningún origen en producción. `*` solo se respeta si se pide explícitamente fuera de producción. Cubierto por `test_platform.py::test_cors_sin_variable_no_queda_abierto` y `::test_cors_comodin_rechazado_en_produccion`. Se comprobó antes que producción ya tenía el origen explícito (el preflight desde `https://phishguard.cmmario.com` devuelve ese origen). |
 | H-09 | **Resuelto** | `e62c678` | `COPY package.json package-lock.json` y `npm ci`. |
 | H-10 | Abierto | — | En el historial ya no se muestran URLs, pero en `ResultCard` las URLs SOSPECHOSO siguen siendo clicables. |
 | H-11 | **Parcial** | `0d1d385` | Corregido el `totalCount` del historial (estaba en RF-11). Siguen pendientes «/72 motores», el modelo por defecto y `utcnow()`. |
@@ -369,7 +371,7 @@ Todas en la rama `main`, en local: **no se ha hecho push ni se han creado tags**
 | 12 | `4907f96` | perf: sacar del event loop las llamadas bloqueantes a la IA, WHOIS y DNS | H-04 y la nota de RNF-04 |
 | 13 | `bdb09ea` | docs: evidencias de pytest y auditoria actualizadas | Este apartado, `pytest.txt` (129 passed) y la limitación del README |
 | 14 | `3acfb6b` | fix(email): conservar tildes y enes del cuerpo con o sin charset declarado | H-12, encontrado en la prueba con la IA real |
-| 15 | `ca07da2` | docs: H-12 en la auditoria y evidencias de pytest | Este registro y `pytest.txt` (en ese momento; ahora 157 passed) |
+| 15 | `ca07da2` | docs: H-12 en la auditoria y evidencias de pytest | Este registro y `pytest.txt` (en ese momento; 157 passed en la entrega y 160 tras la revisión docente) |
 | 16 | `7f48582` | fix(rate-limit): contar tambien los 422 de analisis invalidos | Los 422 de `/api/analyze` ya cuentan para el límite |
 | 17 | `b905cf9` | chore(diag): log temporal de cabeceras de proxy sin exponer IPs | Diagnóstico de `get_client_ip` en Render |
 | 18 | `b4a8715` | fix(urlscan): no reenviar path/query y fijar visibility unlisted | Control de minimización de RF-06 |
@@ -382,7 +384,7 @@ Todas en la rama `main`, en local: **no se ha hecho push ni se han creado tags**
 
 - [`pip-audit-despues.txt`](evidencias/pip-audit-despues.txt)
 - [`npm-audit-despues.txt`](evidencias/npm-audit-despues.txt)
-- [`pytest.txt`](evidencias/pytest.txt): 157 passed
+- [`pytest.txt`](evidencias/pytest.txt): 160 passed (157 en la entrega del 16/10)
 
 Los casos que se pidieron expresamente en los tests son estos:
 
@@ -410,12 +412,27 @@ Las APIs externas, WHOIS y DNS se simulan solo en `backend/tests/conftest.py`, y
 |-------|-----------------------|----------------|
 | RA-01 Tailwind 3 / `braces` (5 altas en build) | Corregirlo exige migrar a Tailwind 4 (cambio de versión mayor) | Aceptado y documentado (apartado 2.3) |
 | RA-02 `react-router-dom@6` (2 moderadas en producción) | Corregirlo exige `react-router-dom@7`, que pide `--force`, y no es explotable en esta aplicación | Aceptado y documentado (apartado 2.3) |
-| RF-10, RNF-07 (a), RNF-11 y H-06: persistencia en Render | Plan gratuito con `/tmp` efímero | Documentado en el README. Hacer la demo en local o contratar un disco persistente |
-| RNF-10: sin healthchecks ni lock de dependencias del backend | No se pidió | `healthcheck` en Compose y `pip-tools` o `pip freeze` |
+| RF-10, RNF-07 (a), RNF-11 y H-06: persistencia en Render | El código ya admite PostgreSQL (`667daca`), pero falta crear la base de datos gestionada y definir `DATABASE_URL` en Render | Crear el PostgreSQL gratuito, definir `DATABASE_URL`, reiniciar y comprobar que el historial se conserva |
+| RNF-10: sin healthchecks | No se pidió | `healthcheck` en Compose. El lock del backend quedó resuelto en `354ce87` |
 | Instalación desde cero por otra persona | Requiere a otra persona y una máquina limpia | Tarea P0 nº 8 |
-| H-08 (CORS `*`), H-10 (enlaces SOSPECHOSO), H-11 (menores) | Fuera del alcance | Tareas P1 y P2 del apartado 6 |
+| H-10 (enlaces SOSPECHOSO), H-11 (menores) | Fuera del alcance | Tareas P1 y P2 del apartado 6. H-08 quedó resuelto en `44de64b` |
 | H-05 residual | Las heurísticas son el suelo, pero no lo cubren todo: un email que engañe a la IA sin señales heurísticas puede salir `SOSPECHOSO` o `LEGÍTIMO` | Mostrarlo en el vídeo como límite conocido; revisión humana |
 | Hilos de WHOIS | Un 504 no cancela el hilo, y el código no fija un timeout para la consulta WHOIS | Aceptado: un único worker y un rate limit de 10/min por IP acotan el número de hilos. Si hace falta, se puede añadir un timeout a la consulta. |
-| Tag `v1.0-practica3` y push | Se pidió expresamente no hacerlos | Tarea 22, sobre el commit final |
+| Tag `v1.0-practica3` y push | Hecho: la etiqueta apunta a `2a9b0f5`, el commit entregado | No se mueve; los cambios del apartado 8 son posteriores a la entrega |
 | Configuración de Render | El backend **no** se creó desde `render.yaml` (mandan defaults del código salvo lo añadido a mano). Tras H-13: en el panel hace falta `ADMIN_TOKEN`, `ENVIRONMENT=production` y **`TRUST_CF_CONNECTING_IP=true`** (Cloudflare delante). `TRUSTED_PROXY_HOPS` queda como respaldo. | Activar `TRUST_CF_CONNECTING_IP=true` en el panel tras desplegar el arreglo |
 | `.env` local | Hay que añadir `ADMIN_TOKEN` a mano. Estas correcciones no lo han modificado. | Generar el token como indica el README |
+
+## 8. Revisión docente (23/11/2026)
+
+Respuesta a cada observación del profesor sobre la entrega etiquetada como `v1.0-practica3` (`2a9b0f5`). Los cambios van en commits pequeños y separados, posteriores a la etiqueta, que no se ha movido.
+
+| Observación | Estado | Commit | Qué se hizo |
+|-------------|--------|--------|-------------|
+| CORS abierto por defecto si falta la variable | **Resuelto** | `44de64b` | Ver H-08 en el apartado 5. Sin variable, solo orígenes locales en desarrollo y ninguno en producción; `*` explícito se rechaza en producción. 2 tests nuevos. |
+| SQLite en `/tmp` en Render free: historial y cuotas no persisten | **Código listo; activación PENDIENTE** | `667daca` | `DATABASE_URL` acepta PostgreSQL (`postgres://` y `postgresql://` se traducen al driver psycopg 3; `pool_pre_ping` para conexiones que el proveedor cierra). La suite completa (160 tests) pasa contra SQLite y contra PostgreSQL 16 real; `TEST_DATABASE_URL` permite repetirlo. Si en Render se sigue usando SQLite, el arranque lo avisa en el log. Falta crear un PostgreSQL gestionado gratuito, definir `DATABASE_URL` en Render y comprobar que el historial sobrevive a un reinicio. |
+| Sin lockfile del backend | **Resuelto** | `354ce87` | `requirements.lock` y `requirements-dev.lock` generados con `pip-compile --generate-hashes` en Python 3.11; el `Dockerfile` instala con `--require-hashes`. Comprobado: build de la imagen, `pip check` sin conflictos, `pip-audit --strict` sin vulnerabilidades y suite completa instalando desde el lock en una imagen limpia. `requirements.txt` sigue listando solo las dependencias directas. |
+| Sin CI | **Resuelto; primera ejecución en GitHub PENDIENTE** | `bc28edd` | `.github/workflows/ci.yml`: pytest contra SQLite y PostgreSQL, `pip-audit`, build de la imagen, `npm ci`, `npm audit --omit=dev --audit-level=high`, `npm run build` y gitleaks sobre todo el historial (versión fijada y checksum verificado). Validado en local sin push: `actionlint` sin errores y los mismos comandos de cada job ejecutados en contenedores (gitleaks: 48 commits, sin fugas). Hay un falso positivo revisado en `.gitleaksignore` (el marcador ficticio `SECRET_MARKER` de `test_history.py`). |
+| (Encontrado al preparar la CI) `follow-redirects` con 3 avisos altos | **Resuelto** | `c1fa724` | Dependencia transitiva de axios en producción. `npm audit fix` sin `--force` la sube a 1.16.3; solo cambia `package-lock.json` y el build pasa. Quedan las 2 moderadas aceptadas como RA-02. |
+| Rotar el token de producción | **PENDIENTE (acción manual en Render)** | — | El `ADMIN_TOKEN` de producción se compartió en una conversación durante la verificación del 14/10. Hay que generar uno nuevo en local, sustituirlo en el panel de Render y comprobar que el anterior da 401. No se escribe en ningún fichero. |
+| Alcance modesto (4 endpoints) | Reconocido, sin cambios | — | Es una valoración del alcance, no un defecto. Ampliarlo ahora no cambiaría la entrega evaluada. Trabajo futuro: tareas P1 y P2 del apartado 6. |
+| Commits concentrados el 14/10 y coautoría de Cursor | Reconocido, sin cambios | — | No se reescribe el historial: cambiar fechas o autores falsearía cómo se hizo el trabajo. El trailer `Co-authored-by: Cursor` es la declaración del uso de IA (apartado 1.3) y también aparece en estos commits. |

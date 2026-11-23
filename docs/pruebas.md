@@ -8,20 +8,20 @@
 
 ## A. Pruebas automatizadas (pytest)
 
-**Evidencia:** [`evidencias/pytest.txt`](evidencias/pytest.txt) — **157 passed**, 1 warning (14/10/2026).
+**Evidencia:** [`evidencias/pytest.txt`](evidencias/pytest.txt) — **160 passed**, 1 warning (23/11/2026; 157 en la entrega del 14/10). La misma suite pasa también contra PostgreSQL 16 (PR-71).
 
 | ID | Requisito | Pasos | Resultado esperado | Resultado obtenido | Estado |
 |----|-----------|-------|--------------------|--------------------|--------|
-| PR-01 | RF-01, RF-03, RF-05, RF-06 | `pytest tests/test_analysis_url.py` (6 tests): URL válida, features, VT/URLScan simulados | Todos PASSED | 6 PASSED en `pytest.txt` | OK |
+| PR-01 | RF-01, RF-03, RF-05, RF-06 | `pytest tests/test_analysis_url.py` (7 tests): URL válida, features, VT/URLScan simulados | Todos PASSED | 7 PASSED en `pytest.txt` | OK |
 | PR-02 | RF-02, RF-04, RF-08 | `pytest tests/test_analysis_email.py` (10): email phishing/benigno, modo sin IA no LEGÍTIMO | Todos PASSED; phishing sin IA → PHISHING | 10 PASSED | OK |
 | PR-03 | RF-04, H-12 | `pytest tests/test_email_encoding.py` (22): tildes/ñ sin charset, multipart, base64 | Cuerpo intacto; frases con tilde detectadas | 22 PASSED | OK |
 | PR-04 | RF-07, RF-08, RNF-07 | `pytest tests/test_ai_and_quota.py` (5): modo AI/fallback y cuotas | PASSED | 5 PASSED | OK |
 | PR-05 | RF-07, H-05 | `pytest tests/test_prompt_injection.py` (25): inyección, esquema estricto, suelo heurístico | PASSED; fuera de esquema → fallo IA | 25 PASSED | OK |
 | PR-06 | RF-09 | `pytest tests/test_external_failures.py` (11): VT/URLScan/Anthropic/WHOIS caídos | HTTP 200 sin filtrar detalles | 11 PASSED | OK |
 | PR-07 | RF-10, RF-11, RF-12, H-01 | `pytest tests/test_history.py` (9): 401 sin token, 200 con token sin cuerpos, stats | PASSED | 9 PASSED | OK |
-| PR-08 | RNF-01, H-03, H-13 | `pytest tests/test_rate_limit.py` (12): 429, XFF, CF-Connecting-IP (`TRUST_CF_CONNECTING_IP`) | PASSED | 12 PASSED en `pytest.txt` | OK |
+| PR-08 | RNF-01, H-03, H-13 | `pytest tests/test_rate_limit.py` (14): 429, XFF, CF-Connecting-IP (`TRUST_CF_CONNECTING_IP`) | PASSED | 14 PASSED en `pytest.txt` | OK |
 | PR-09 | RNF-02, RNF-03, RNF-04, RNF-09 | `pytest tests/test_security.py` (45): cabeceras, SSRF, validación, 500 genérico | PASSED | 45 PASSED | OK |
-| PR-10 | RF-15, RNF-05, RNF-06, RNF-09, RNF-12 | `pytest tests/test_platform.py` (7): OpenAPI en dev, no-root, auditoría, docs off en prod | PASSED | 7 PASSED | OK |
+| PR-10 | RF-15, RNF-05, RNF-06, RNF-09, RNF-11, RNF-12, H-08 | `pytest tests/test_platform.py` (10): OpenAPI en dev, no-root, auditoría, docs off en prod, CORS cerrado por defecto, URL de PostgreSQL | PASSED | 10 PASSED | OK |
 | PR-11 | RNF-04, H-04 | `pytest tests/test_event_loop.py` (2): Claude/WHOIS no bloquean el loop | PASSED | 2 PASSED | OK |
 
 ---
@@ -72,6 +72,23 @@ Backend: `phishguard-backend-qszu.onrender.com`. Frontend: `phishguard.cmmario.c
 | PR-45 | RNF-01 / **422 sin contar** | 12× POST analyze inválido | Antes: solo 422, sin 429. Después: 10×422 + 2×429 | Antes: 12×422 0×429 (diagnóstico). Después: PR-36 | OK |
 | PR-46 | RF-04 / **H-12** codificación | Email sin Content-Type con «cerámica», «contraseña» | Antes: mojibake / frases no detectadas. Después: texto intacto | Antes: fallo en prueba IA real. Después: `test_email_encoding` 22 PASSED; PR-34 tildes OK | OK |
 | PR-47 | RNF-01 / **H-13** IP tras Cloudflare | Ver logs + martillo producción | Antes: IP `10.x` variable, 0×429. Después: IP pública estable + 429 | Antes: 10.24… / 10.30…, 0×429. Después: PR-35–37, `ip=91.117.233.xxx` | OK |
+
+---
+
+## D2. Revisión docente (23/11/2026)
+
+Detalle en el apartado 8 de [`auditoria-p3.md`](auditoria-p3.md).
+
+| ID | Requisito / hallazgo | Pasos | Resultado esperado | Resultado obtenido | Estado |
+|----|----------------------|-------|--------------------|--------------------|--------|
+| PR-70 | RNF-12 / **H-08** CORS | `test_cors_sin_variable_no_queda_abierto`, `test_cors_comodin_rechazado_en_produccion` | Sin variable: solo orígenes locales (dev) o ninguno (prod); `*` rechazado en prod | 2 PASSED | OK |
+| PR-71 | RF-10, RNF-07 / **H-06** | Suite completa con `TEST_DATABASE_URL=postgres://…` contra un contenedor `postgres:16-alpine` | 160 PASSED; tablas creadas en PostgreSQL | **160 passed**; `analyses` y `anthropic_usage_log` creadas | OK |
+| PR-72 | RNF-10 lockfile | `docker build backend` con `--require-hashes`; `pip check`; `pip-audit --strict -r requirements.lock`; suite instalando desde `requirements-dev.lock` | Build OK, sin conflictos ni vulnerabilidades, 160 PASSED | Build OK; «No broken requirements»; «No known vulnerabilities found»; 160 passed | OK |
+| PR-73 | CI (validación local) | `actionlint`; job de gitleaks en `ubuntu:24.04`; `npm ci` + `npm audit --omit=dev --audit-level=high` + `npm run build` en `node:20-alpine` | Sin errores; sin fugas; audit high OK; build OK | actionlint 0 errores; gitleaks «48 commits scanned, no leaks found»; audit high exit 0 tras `c1fa724`; build OK | OK |
+| PR-74 | CI en GitHub | Primer push con `.github/workflows/ci.yml` | Los 3 jobs en verde | PENDIENTE (sin push) | PENDIENTE |
+| PR-75 | RNF-12 / H-08 en producción | Preflight `OPTIONS /api/stats` con `Origin: https://phishguard.cmmario.com` y con un origen ajeno | El primero recibe su origen; el ajeno no | 200 con `access-control-allow-origin: https://phishguard.cmmario.com`; ajeno 400 sin la cabecera. Comprobado con el código desplegado antes de `44de64b`: con el origen explícito en Render el cambio no altera este caso | OK |
+| PR-76 | RF-10, RNF-07 / H-06 en producción | Con `DATABASE_URL` a PostgreSQL en Render: analizar, reiniciar el servicio y consultar `/api/stats` | El total no vuelve a 0 | PENDIENTE (falta crear la BD) | PENDIENTE |
+| PR-77 | RNF-08 rotación de `ADMIN_TOKEN` | Sustituir el token en Render y llamar a `/api/history` con el antiguo | 401 con el antiguo, 200 con el nuevo | PENDIENTE (acción manual) | PENDIENTE |
 
 ---
 
