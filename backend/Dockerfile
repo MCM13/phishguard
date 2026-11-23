@@ -18,9 +18,11 @@ RUN groupadd --gid 10001 appuser \
 
 WORKDIR /app
 
-# Instalamos primero las dependencias para aprovechar la caché de Docker
-COPY requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Instalamos primero las dependencias para aprovechar la caché de Docker.
+# requirements.lock fija todas las versiones (también las transitivas) con
+# hashes; pip rechaza cualquier paquete cuyo hash no coincida.
+COPY requirements.lock ./
+RUN pip install --require-hashes --no-deps -r requirements.lock
 
 # Copiamos el código de la aplicación asignando la propiedad al usuario no-root
 COPY --chown=appuser:appuser app ./app

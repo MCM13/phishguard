@@ -103,7 +103,16 @@ curl http://localhost:8000/
 
 ### Desarrollo sin Docker (opcional)
 
-**Backend:** `cd backend` → entorno virtual → `pip install -r requirements.txt` → `uvicorn app.main:app --reload --port 8000`
+**Backend:** `cd backend` → entorno virtual → `pip install --require-hashes -r requirements-dev.lock` → `uvicorn app.main:app --reload --port 8000`
+
+**Dependencias del backend:** `requirements.txt` y `requirements-dev.txt` listan solo las dependencias directas; `requirements.lock` (imagen Docker) y `requirements-dev.lock` (tests y CI) fijan también las transitivas con hashes SHA-256. Tras cambiar una dependencia directa, regenera ambos en Python 3.11:
+
+```bash
+cd backend
+pip install pip-tools
+pip-compile --generate-hashes --allow-unsafe --strip-extras --no-emit-index-url -o requirements.lock requirements.txt
+pip-compile --generate-hashes --allow-unsafe --strip-extras --no-emit-index-url -o requirements-dev.lock requirements-dev.txt
+```
 
 **Frontend:** `cd frontend` → `npm install` → `npm run dev` (configura `VITE_API_URL` en `.env` apuntando al backend local).
 
@@ -131,7 +140,7 @@ Copia `.env.example` a `.env` en la raíz del proyecto. **Todas las claves y sec
 | `TRUST_CF_CONNECTING_IP` | No | `false` | Si `true`, la IP sale de `CF-Connecting-IP` (Cloudflare). **Solo con Cloudflare delante**; sin él el cliente podría falsificarla. |
 | `ALLOWED_ORIGINS` | Sí en producción | `http://localhost:3000,http://127.0.0.1:3000` en desarrollo; ninguno en producción | Orígenes permitidos para CORS (lista separada por comas). Nunca se abre a `*` por omisión; `*` explícito solo se respeta fuera de producción. |
 | `FRONTEND_URL` | No | vacío | URL pública del frontend; se añade a CORS. |
-| `DATABASE_URL` | No | `sqlite:////data/phishguard.db` en Compose | Cadena de conexión SQLite. |
+| `DATABASE_URL` | Sí en Render free para persistir | `sqlite:////data/phishguard.db` en Compose; `sqlite:////tmp/phishguard.db` en Render | SQLite o PostgreSQL (`postgres://…` / `postgresql://…`, driver psycopg 3). En Render free el disco es efímero: sin un PostgreSQL gestionado, historial y cuotas de IA se borran en cada arranque. |
 | `LOG_LEVEL` | No | `INFO` | Nivel de log del backend. |
 | `VITE_API_URL` | No | `http://localhost:8000` | URL pública del backend que usa el navegador (se fija al construir el frontend). |
 
@@ -188,7 +197,7 @@ Con Docker (no hace falta Python local):
 
 ```bash
 docker run --rm -e PYTHONDONTWRITEBYTECODE=1 -v "$(pwd)/backend:/app" -w /app python:3.11-slim \
-  sh -c "pip install -q -r requirements-dev.txt && python -m pytest -v -p no:cacheprovider"
+  sh -c "pip install -q --require-hashes -r requirements-dev.lock && python -m pytest -v -p no:cacheprovider"
 ```
 
 En PowerShell cambia `$(pwd)` por `${PWD}`.
@@ -198,9 +207,11 @@ Con Python 3.11 local:
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
+pip install --require-hashes -r requirements-dev.lock
 python -m pytest -v
 ```
+
+Para ejecutar la misma suite contra PostgreSQL, define `TEST_DATABASE_URL` con una base de datos desechable (sus tablas se vacían en cada test).
 
 La última ejecución está guardada en [`docs/evidencias/pytest.txt`](docs/evidencias/pytest.txt). Hay un test por cada requisito verificable desde el código del backend; la correspondencia está en [`docs/auditoria-p3.md`](docs/auditoria-p3.md).
 
@@ -213,8 +224,10 @@ phishguard/
 ├── backend/              # API REST (FastAPI)
 │   ├── app/              # Lógica de aplicación, rutas y servicios
 │   ├── tests/            # Suite pytest
-│   ├── requirements.txt
+│   ├── requirements.txt      # Dependencias directas
 │   ├── requirements-dev.txt
+│   ├── requirements.lock     # Versiones exactas con hashes (Docker)
+│   ├── requirements-dev.lock # Ídem con pytest (tests y CI)
 │   └── Dockerfile
 ├── frontend/             # SPA React (Vite)
 │   ├── src/
