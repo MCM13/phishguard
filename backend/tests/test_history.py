@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from app.database import SessionLocal
+from app.database import IS_SQLITE, SessionLocal
 from app.models.analysis import Analysis
 from tests.conftest import ADMIN_TOKEN, DB_PATH, PHISHING_EMAIL
 
@@ -90,7 +90,8 @@ def test_rf10_se_guarda_solo_lo_minimo(client):
         db.close()
     assert row.target_domain == "login.example.test"
     assert row.input_hash == hashlib.sha256(url.encode()).hexdigest()
-    assert SECRET_MARKER.encode() not in DB_PATH.read_bytes()
+    if IS_SQLITE:
+        assert SECRET_MARKER.encode() not in DB_PATH.read_bytes()
 
 
 def test_rf11_paginacion_y_filtro(client, admin_headers):

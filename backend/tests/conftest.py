@@ -25,7 +25,9 @@ _TMP_DIR = Path(tempfile.mkdtemp(prefix="phishguard-tests-"))
 DB_PATH = _TMP_DIR / "test.db"
 ADMIN_TOKEN = "token-de-pruebas-ficticio-0123456789"
 
-os.environ["DATABASE_URL"] = f"sqlite:///{DB_PATH.as_posix()}"
+# TEST_DATABASE_URL permite ejecutar la misma suite contra un PostgreSQL
+# desechable (lo usa la CI); sus tablas se vacían en cada test.
+os.environ["DATABASE_URL"] = os.getenv("TEST_DATABASE_URL") or f"sqlite:///{DB_PATH.as_posix()}"
 os.environ["ADMIN_TOKEN"] = ADMIN_TOKEN
 os.environ["ALLOWED_ORIGINS"] = "http://localhost:3000"
 for _var in ("ANTHROPIC_API_KEY", "VIRUSTOTAL_API_KEY", "URLSCAN_API_KEY", "FRONTEND_URL"):

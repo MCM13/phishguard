@@ -69,6 +69,16 @@ def test_rnf06_auditoria_json_sin_cuerpos_ni_secretos(client, audit_log, admin_h
     assert ADMIN_TOKEN not in joined
 
 
+def test_rnf11_database_url_postgres_usa_psycopg3():
+    from app.database import _normalize_database_url
+
+    base = "usuario:clave-ficticia@db.example.test:5432/phishguard?sslmode=require"
+    assert _normalize_database_url("postgres://" + base) == "postgresql+psycopg://" + base
+    assert _normalize_database_url("postgresql://" + base) == "postgresql+psycopg://" + base
+    assert _normalize_database_url("postgresql+psycopg://" + base) == "postgresql+psycopg://" + base
+    assert _normalize_database_url("sqlite:////data/phishguard.db") == "sqlite:////data/phishguard.db"
+
+
 def test_rnf12_cors_desde_entorno(monkeypatch):
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://app.example.test/, https://app.example.test")
     monkeypatch.setenv("FRONTEND_URL", "https://www.example.test")

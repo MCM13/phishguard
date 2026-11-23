@@ -1,15 +1,17 @@
 """
-Configuración de la base de datos SQLite usando SQLAlchemy.
+Configuración de la base de datos usando SQLAlchemy.
 
 Define el motor, la sesión y la base declarativa que utilizarán los modelos
-ORM del proyecto. La ruta del fichero SQLite se puede sobrescribir mediante
-la variable de entorno DATABASE_URL.
+ORM del proyecto. Por defecto se usa SQLite; DATABASE_URL permite apuntar a
+otro fichero SQLite o a PostgreSQL (postgres://… o postgresql://…, se usa el
+driver psycopg 3).
 
 En Render (y otros PaaS con filesystem efímero):
   - El directorio de la app puede ser de solo lectura o borrarse en cada deploy.
-  - Si no defines DATABASE_URL, se usa automáticamente /tmp/phishguard.db
-    (siempre escribible). Los datos se pierden al redeploy salvo que montes
-    un Persistent Disk y apuntes DATABASE_URL a esa ruta.
+  - Si no defines DATABASE_URL, se usa /tmp/phishguard.db, que se borra en
+    cada arranque: historial y cuotas de IA no persisten.
+  - Para persistir sin disco de pago, define DATABASE_URL con un PostgreSQL
+    gestionado (Neon, Supabase…).
 """
 
 from __future__ import annotations
@@ -52,6 +54,23 @@ def _sqlite_filesystem_path(database_url: str) -> str | None:
     return None
 
 
+def _normalize_database_url(url: str) -> str:
+    """
+    Fuerza el driver psycopg 3 en URLs de PostgreSQL.
+
+    Los proveedores entregan postgres://… o postgresql://…; SQLAlchemy no
+    acepta el primero y con el segundo buscaría psycopg2, que no se instala.
+    """
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix) :]
+    return url
+
+
+def _running_on_render() -> bool:
+    return bool(os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID"))
+
+
 def _resolve_database_url() -> str:
     """
     Determina la URL de la base de datos según el entorno.
@@ -63,9 +82,9 @@ def _resolve_database_url() -> str:
     """
     explicit = os.getenv("DATABASE_URL", "").strip()
     if explicit:
-        return explicit
+        return _normalize_database_url(explicit)
 
-    if os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID"):
+    if _running_on_render():
         # Render inyecta RENDER=true en todos los servicios web.
         return "sqlite:////tmp/phishguard.db"
 
@@ -84,13 +103,16 @@ def _ensure_sqlite_parent_dir(database_url: str) -> None:
 
 
 DATABASE_URL = _resolve_database_url()
+IS_SQLITE = DATABASE_URL.startswith("sqlite")
 
-# El argumento check_same_thread sólo es necesario en SQLite para permitir
-# que varias hebras de FastAPI puedan usar la misma conexión.
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
-)
+if IS_SQLITE:
+    # check_same_thread=False permite que varias hebras de FastAPI usen la
+    # misma conexión SQLite.
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    # Los PostgreSQL gestionados cierran conexiones inactivas: pre_ping las
+    # descarta antes de usarlas en lugar de devolver un 500.
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 
 # Fábrica de sesiones que usaremos como dependencia en los routers
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -166,7 +188,7 @@ def _migrate_legacy_analyses() -> None:
         if minimized:
             conn.execute(Analysis.__table__.insert(), minimized)
 
-    if DATABASE_URL.startswith("sqlite"):
+    if IS_SQLITE:
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
             conn.exec_driver_sql("VACUUM")
     logger.warning("Migración completada: %d registros minimizados.", len(rows))
@@ -184,8 +206,13 @@ def init_db() -> None:
         Base.metadata.create_all(bind=engine)
         logger.info(
             "Base de datos inicializada (%s)",
-            _sqlite_filesystem_path(DATABASE_URL) or DATABASE_URL.split("?")[0],
+            _sqlite_filesystem_path(DATABASE_URL) or engine.url.render_as_string(hide_password=True).split("?")[0],
         )
+        if IS_SQLITE and _running_on_render():
+            logger.warning(
+                "SQLite en el disco efímero de Render: historial y cuotas de IA se pierden "
+                "en cada arranque. Define DATABASE_URL con un PostgreSQL gestionado."
+            )
     except Exception as exc:
         logger.exception("Error al inicializar la base de datos: %s", exc)
         raise
