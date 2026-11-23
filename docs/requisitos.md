@@ -19,7 +19,7 @@
 | RF-07 | Veredicto con IA (Claude): JSON estricto, score 0–100, veredictos PHISHING / SOSPECHOSO / LEGÍTIMO, explicación en español | Cumplido |
 | RF-08 | Motor heurístico de respaldo cuando no hay IA | Cumplido |
 | RF-09 | Tolerancia a fallos de VirusTotal, URLScan o WHOIS | Cumplido |
-| RF-10 | Guardar cada análisis en SQLite (SQLAlchemy) | **Parcial** |
+| RF-10 | Guardar cada análisis en base de datos (SQLAlchemy; SQLite en local, PostgreSQL en producción) | Cumplido |
 | RF-11 | Historial paginado y filtrable por veredicto | Cumplido |
 | RF-12 | Dashboard con estadísticas y cuota de IA | Cumplido |
 | RF-13 | Medidor visual 0–100 con colores por veredicto | Cumplido |
@@ -28,7 +28,7 @@
 
 **Notas de estado**
 
-- **RF-10 Parcial:** en local/Compose los datos persisten; en Render (`sqlite:////tmp/…`) se pierden en cada reinicio (documentado en el README). Desde el 23/11 el código admite PostgreSQL por `DATABASE_URL` (`667daca`); pasa a Cumplido cuando se configure en Render y se compruebe tras un reinicio (PR-76).
+- **RF-10 Cumplido desde el 23/11:** en local/Compose los datos persisten en el volumen; en Render, `DATABASE_URL` apunta a un PostgreSQL gestionado (Neon) y el historial sobrevive a un reinicio (PR-76). Hasta esa fecha estaba Parcial porque SQLite en `/tmp` se borraba en cada reinicio.
 - **RF-15:** `/docs` está disponible en desarrollo; en producción se desactiva a propósito (`ENVIRONMENT=production`, ver RNF-09).
 - **RF-08:** en modo sin IA la UI muestra «Análisis limitado (sin IA)» y no devuelve `LEGÍTIMO` (usa `NO CONCLUYENTE` si no hay señales suficientes).
 
@@ -44,7 +44,7 @@
 | RNF-04 | Validación y saneado de entradas (límites, HTML, 413/415/504) | Cumplido |
 | RNF-05 | Contenedor backend sin privilegios (`appuser`, UID 10001) | Cumplido |
 | RNF-06 | Logs de auditoría JSON sin cuerpos ni claves | Cumplido |
-| RNF-07 | Cuotas configurables de Anthropic (hora/día) persistidas en BD | **Parcial** |
+| RNF-07 | Cuotas configurables de Anthropic (hora/día) persistidas en BD | Cumplido |
 | RNF-08 | Secretos solo en `.env` / paneles; nunca en el repositorio | Cumplido |
 | RNF-09 | Errores genéricos; sin `/docs` en producción | Cumplido |
 | RNF-10 | Entorno reproducible con Docker Compose | **Parcial** |
@@ -54,12 +54,13 @@
 
 **Notas de estado**
 
-- **RNF-07 / RNF-11 Parciales:** disco efímero y cold start del plan gratuito de Render. El disco efímero deja de afectar a las cuotas cuando `DATABASE_URL` apunte a PostgreSQL (mismo caso que RF-10).
+- **RNF-07 Cumplido desde el 23/11:** el contador de cuota vive en el PostgreSQL de producción y se conserva tras un reinicio (PR-76).
+- **RNF-11 Parcial:** arranque en frío del plan gratuito de Render (y suspensión de Neon por inactividad).
 - **RNF-10 Parcial:** falta instalación por otra persona en máquina limpia y no hay healthchecks. Resuelto el 23/11: lock del backend con hashes (`354ce87`) y CI en GitHub Actions (`bc28edd`).
 - **RNF-12:** desde `44de64b` CORS no se abre a `*` si falta la variable (H-08).
 - **RNF-02:** el frontend (Pages / nginx) no añade las mismas cabeceras OWASP.
 
-**Recuento:** RF 14 Cumplidos + 1 Parcial; RNF 10 Cumplidos + 3 Parciales. Ningún Pendiente en la lista principal.
+**Recuento (23/11):** RF 15 Cumplidos; RNF 11 Cumplidos + 2 Parciales (RNF-10, RNF-11). Ningún Pendiente en la lista principal. En la entrega del 16/10: RF 14 + 1; RNF 10 + 3.
 
 ---
 
@@ -72,7 +73,7 @@
 | **Estado** | **A revisar** |
 | **Versión original** | Enunciado P1, requisito obligatorio 03: despliegue en un VPS de **Hetzner**. |
 | **Versión nueva** | Backend en **Render** (Docker, HTTPS gestionado) y frontend en **Cloudflare Pages** con dominio `https://phishguard.cmmario.com`. |
-| **Justificación** | El VPS de Hetzner **nunca se llegó a recibir**, así que no fue posible desplegar ahí. Se usó el stack gratuito Render + Cloudflare Pages para cumplir el objetivo de tener la aplicación accesible en Internet con HTTPS y dominio propio (RNF-11). **Consecuencias aceptadas:** arranque en frío del plan free de Render y disco efímero (`/tmp`), que vacían historial y contadores de cuota en cada reinicio (afecta a RF-10, RNF-07 y RNF-11). Documentado en el README y en `docs/evidencias/verificacion-produccion.md`. El FAQ de la P3 indica que el despliegue no es obligatorio; aun así se mantiene como «A revisar» por si el docente exige Hetzner. |
+| **Justificación** | El VPS de Hetzner **nunca se llegó a recibir**, así que no fue posible desplegar ahí. Se usó el stack gratuito Render + Cloudflare Pages para cumplir el objetivo de tener la aplicación accesible en Internet con HTTPS y dominio propio (RNF-11). **Consecuencias aceptadas:** arranque en frío del plan free de Render y disco efímero (`/tmp`), que vacían historial y contadores de cuota en cada reinicio (afecta a RF-10, RNF-07 y RNF-11). **Actualización 23/11:** el disco efímero dejó de afectar al pasar a PostgreSQL gestionado (Neon); queda solo el arranque en frío. Documentado en el README y en `docs/evidencias/verificacion-produccion.md`. El FAQ de la P3 indica que el despliegue no es obligatorio; aun así se mantiene como «A revisar» por si el docente exige Hetzner. |
 
 ### D-02 — Análisis de capturas / imágenes
 

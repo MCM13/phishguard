@@ -116,7 +116,7 @@ No abrir ni mostrar `.env` en el vídeo ni en capturas.
 ### Conservación
 
 - Local/Compose: volumen Docker.
-- **Producción Render:** sin `DATABASE_URL`, SQLite en `/tmp` → se borra en reinicios/cold start (limitación documentada). El código admite un PostgreSQL gestionado (`667daca`); cuando se configure, se conserva hasta que se borre, así que habrá que definir un plazo de conservación.
+- **Producción Render:** desde el 23/11, PostgreSQL gestionado en Neon (región Frankfurt, UE). Los registros minimizados se conservan hasta que se borren a mano; no hay purga automática por antigüedad.
 
 ### Protección
 
@@ -135,8 +135,9 @@ No abrir ni mostrar `.env` en el vídeo ni en capturas.
 | Riesgo | Descripción | Mitigación parcial | Residual |
 |--------|-------------|--------------------|----------|
 | Inyección de prompt sin señales heurísticas | Un email elaborado puede convencer a la IA de LEGÍTIMO/SOSPECHOSO si las reglas locales no disparan | Delimitación + esquema + suelo heurístico cuando sí hay señales | **Sí:** no cubre todos los casos (H-05 residual) |
-| Disco efímero en Render | Historial y cuotas se reinician | Soporte de PostgreSQL por `DATABASE_URL` (`667daca`); falta crear la BD en Render | **Sí** hasta activarlo (H-06 / RF-10 / RNF-07 / RNF-11) |
-| `ADMIN_TOKEN` de producción expuesto en una conversación | Se pegó en un chat durante la verificación del 14/10 | Rotarlo en Render y comprobar que el antiguo da 401 (PR-77) | **Sí** hasta rotarlo |
+| Disco efímero en Render | Historial y cuotas se reiniciaban | PostgreSQL gestionado (Neon) por `DATABASE_URL` desde el 23/11; verificado tras reinicio (PR-76) | No |
+| `ADMIN_TOKEN` de producción expuesto en una conversación | Se pegó en un chat durante la verificación del 14/10 | Rotado en Render el 23/11; falta comprobar que el antiguo da 401 (PR-77) | Bajo (pendiente de esa comprobación) |
+| Credenciales de la base de datos | `DATABASE_URL` incluye usuario y contraseña de Neon | Solo en el panel de Render; el log de arranque la muestra con la contraseña oculta (`***`) | Bajo |
 | Enlaces SOSPECHOSO clicables | H-10 | PHISHING ya bloqueado | **Sí** (menor) |
 | CORS sin `ALLOWED_ORIGINS` | H-08 | Resuelto en `44de64b`: sin variable no se abre a `*` y en producción no se permite ningún origen | No |
 | Dependencias transitivas sin fijar | Una build futura podía traer otra versión | `requirements.lock` con hashes y `--require-hashes` (`354ce87`); `pip-audit`, `npm audit` y gitleaks en CI (`bc28edd`) | No |

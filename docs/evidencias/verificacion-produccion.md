@@ -134,4 +134,21 @@ La última línea es la petición con `X-Forwarded-For` falsa: la IP auditada si
 | Rate limit por IP real tras Cloudflare (H-13) | OK |
 | XFF falsa no sustituye la IP | OK |
 
-Pendiente operativo (fuera de este fichero): persistencia en `/tmp` (H-06), y variables opcionales `RATE_LIMIT_*` / `ANTHROPIC_MAX_*` solo si se quieren distintos de los defaults del código.
+Pendiente operativo (fuera de este fichero): persistencia en `/tmp` (H-06, resuelto el 23/11, ver abajo), y variables opcionales `RATE_LIMIT_*` / `ANTHROPIC_MAX_*` solo si se quieren distintos de los defaults del código.
+
+---
+
+## Persistencia con PostgreSQL (23/11/2026)
+
+- **Commit desplegado:** `762ee4d` (incluye `667daca`, soporte de PostgreSQL), con `DATABASE_URL` en el panel de Render apuntando a un PostgreSQL gratuito de Neon (región AWS Europe Central 1, Frankfurt). La cadena no se escribe en el repositorio.
+- **Sin gastar cuota de IA en las comprobaciones;** el único análisis lo hizo el autor desde la web (1 llamada).
+
+| Paso | Resultado |
+|------|-----------|
+| Log de arranque en Render | `app.database: Base de datos inicializada (postgresql+psycopg://neondb_owner:***@ep-….eu-central-1.aws.neon.tech/neondb)`; sin el aviso de SQLite efímero |
+| `GET /` y `GET /api/stats` tras el deploy | 200; `total_analyzed=0`, cuota 0/10 h y 0/20 día (BD recién creada) |
+| Preflight CORS desde `https://phishguard.cmmario.com` | 200 con `access-control-allow-origin: https://phishguard.cmmario.com` |
+| Análisis de `https://example.com` desde la web | `/api/stats`: `total_analyzed=1`, `avg_score=5.0`, cuota 1/10 h y 1/20 día |
+| **Restart service** en Render y nuevo `GET /api/stats` | **Mismos valores**: `total_analyzed=1`, cuota 1/10 h y 1/20 día. Con SQLite en `/tmp` volvían a 0 |
+
+**Conclusión:** historial y cuota de IA persisten entre reinicios (H-06, RF-10 y RNF-07 resueltos).
