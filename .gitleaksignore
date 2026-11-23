@@ -1,0 +1,4 @@
+# Falsos positivos revisados a mano. Formato: commit:fichero:regla:línea
+# SECRET_MARKER es un marcador ficticio que el test busca para comprobar que el cuerpo analizado no se guarda.
+796b8d6fc45e17b75a16b75f626d85117b8b9650:backend/tests/test_history.py:generic-api-key:16
+backend/tests/test_history.py:generic-api-key:16

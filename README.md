@@ -1,5 +1,6 @@
 # PhishGuard
 
+[![CI](https://github.com/MCM13/phishguard/actions/workflows/ci.yml/badge.svg)](https://github.com/MCM13/phishguard/actions/workflows/ci.yml)
 [![Backend — Render](https://img.shields.io/badge/Backend-Render-46E3B7?style=flat&logo=render&logoColor=white)](https://render.com)
 [![Frontend — Cloudflare Pages](https://img.shields.io/badge/Frontend-Cloudflare%20Pages-F38020?style=flat&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -212,6 +213,14 @@ python -m pytest -v
 ```
 
 Para ejecutar la misma suite contra PostgreSQL, define `TEST_DATABASE_URL` con una base de datos desechable (sus tablas se vacían en cada test).
+
+### Integración continua
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) se ejecuta en cada push a `main` y en cada pull request:
+
+- **Backend:** instala `requirements-dev.lock` con `--require-hashes`, ejecuta la suite contra SQLite y contra un PostgreSQL 16 de servicio, pasa `pip-audit --strict` sobre `requirements.lock` y construye la imagen Docker.
+- **Frontend:** `npm ci`, `npm audit --omit=dev --audit-level=high` (las 2 moderadas del riesgo aceptado RA-02 no bloquean; cualquier aviso alto sí) y `npm run build`.
+- **Secretos:** gitleaks (versión fijada y checksum verificado) sobre todo el historial. Los falsos positivos revisados están en [`.gitleaksignore`](.gitleaksignore).
 
 La última ejecución está guardada en [`docs/evidencias/pytest.txt`](docs/evidencias/pytest.txt). Hay un test por cada requisito verificable desde el código del backend; la correspondencia está en [`docs/auditoria-p3.md`](docs/auditoria-p3.md).
 
